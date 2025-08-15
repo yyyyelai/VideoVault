@@ -115,7 +115,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src-tauri/target/release/bundle/dmg/*.dmg
+        asset_path: src-tauri/target/release/bundle/dmg/videovault_*.dmg
         asset_name: videovault-macos.dmg
         asset_content_type: application/octet-stream
       continue-on-error: true
@@ -127,7 +127,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src-tauri/target/release/bundle/macos/*.app
+        asset_path: src-tauri/target/release/bundle/macos/videovault.app
         asset_name: videovault-macos.app
         asset_content_type: application/octet-stream
       continue-on-error: true
