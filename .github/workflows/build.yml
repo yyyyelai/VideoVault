@@ -34,8 +34,14 @@ jobs:
       run: |
         echo "Node version: $(node --version)"
         echo "NPM version: $(npm --version)"
-        echo "Available memory: $(free -h || echo 'Memory info not available')"
-        echo "Disk space: $(df -h || echo 'Disk info not available')"
+        echo "Runner OS: $RUNNER_OS"
+        echo "Runner Architecture: $RUNNER_ARCH"
+        echo "Available disk space:"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          echo "Windows runner - disk info not available in this context"
+        else
+          df -h | head -3
+        fi
     
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
