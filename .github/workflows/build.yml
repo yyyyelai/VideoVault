@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     runs-on: ${{ matrix.platform }}
@@ -79,13 +83,14 @@ jobs:
         RUST_BACKTRACE: 1
     
     - name: Create Release
+      id: create_release
       if: matrix.platform == 'macos-latest'
-      uses: softprops/action-gh-release@v2
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: |
-          src-tauri/target/release/bundle/dmg/*.dmg
         tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
         body: |
           Automated build for VideoVault
           
@@ -93,8 +98,17 @@ jobs:
           Build Number: ${{ github.run_number }}
         draft: false
         prerelease: false
+    
+    - name: Upload Release Assets
+      if: matrix.platform == 'macos-latest'
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: src-tauri/target/release/bundle/dmg/*.dmg
+        asset_name: videovault-${{ matrix.platform }}.dmg
+        asset_content_type: application/octet-stream
     
     - name: Upload artifacts (fallback)
       uses: actions/upload-artifact@v4
