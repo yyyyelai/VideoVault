@@ -16,7 +16,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: [macos-latest]
+        platform: [macos-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v4
