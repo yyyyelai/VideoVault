@@ -108,6 +108,20 @@ jobs:
         ls -la src-tauri/target/release/bundle/dmg/ || echo "DMG directory not found"
         ls -la src-tauri/target/release/bundle/macos/ || echo "MacOS directory not found"
     
+    - name: Find DMG file
+      if: matrix.platform == 'macos-latest'
+      id: find_dmg
+      run: |
+        DMG_FILE=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
+        if [ -n "$DMG_FILE" ]; then
+          echo "Found DMG file: $DMG_FILE"
+          echo "dmg_path=$DMG_FILE" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename "$DMG_FILE")" >> $GITHUB_OUTPUT
+        else
+          echo "No DMG file found"
+          exit 1
+        fi
+    
     - name: Upload DMG file
       if: matrix.platform == 'macos-latest'
       uses: actions/upload-release-asset@v1
@@ -115,21 +129,28 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src-tauri/target/release/bundle/dmg/videovault_*.dmg
+        asset_path: ${{ steps.find_dmg.outputs.dmg_path }}
         asset_name: videovault-macos.dmg
         asset_content_type: application/octet-stream
       continue-on-error: true
     
-    - name: Upload APP bundle
+    - name: Create ZIP archive of APP bundle
+      if: matrix.platform == 'macos-latest'
+      run: |
+        cd src-tauri/target/release/bundle/macos
+        zip -r videovault-macos.app.zip videovault.app
+        echo "Created ZIP archive: videovault-macos.app.zip"
+    
+    - name: Upload APP bundle ZIP
       if: matrix.platform == 'macos-latest'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src-tauri/target/release/bundle/macos/videovault.app
-        asset_name: videovault-macos.app
-        asset_content_type: application/octet-stream
+        asset_path: src-tauri/target/release/bundle/macos/videovault-macos.app.zip
+        asset_name: videovault-macos.app.zip
+        asset_content_type: application/zip
       continue-on-error: true
     
     - name: Upload artifacts (fallback)
