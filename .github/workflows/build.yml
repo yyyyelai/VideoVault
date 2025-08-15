@@ -30,24 +30,31 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Check system info
+    - name: Check system info (Windows)
+      if: matrix.platform == 'windows-latest'
+      shell: pwsh
+      run: |
+        Write-Host "Node version: $(node --version)"
+        Write-Host "NPM version: $(npm --version)"
+        Write-Host "Runner OS: $env:RUNNER_OS"
+        Write-Host "Runner Architecture: $env:RUNNER_ARCH"
+        Write-Host "Windows runner - system info available"
+    
+    - name: Check system info (macOS)
+      if: matrix.platform == 'macos-latest'
+      shell: bash
       run: |
         echo "Node version: $(node --version)"
         echo "NPM version: $(npm --version)"
         echo "Runner OS: $RUNNER_OS"
         echo "Runner Architecture: $RUNNER_ARCH"
         echo "Available disk space:"
-        if [ "$RUNNER_OS" = "Windows" ]; then
-          echo "Windows runner - disk info not available in this context"
-        else
-          df -h | head -3
-        fi
+        df -h | head -3
     
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        target: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || matrix.platform == 'macos-latest' && 'x86_64-apple-darwin' || 'x86_64-unknown-linux-gnu' }}
     
     - name: Cache Rust dependencies
       uses: actions/cache@v4
@@ -72,6 +79,7 @@ jobs:
       run: npm install -g @tauri-apps/cli
     
     - name: Build frontend
+      shell: bash
       run: |
         echo "Starting frontend build..."
         npm run build
@@ -107,6 +115,7 @@ jobs:
     
     - name: List build artifacts
       if: matrix.platform == 'macos-latest'
+      shell: bash
       run: |
         echo "Listing build artifacts..."
         find src-tauri/target/release -name "*.dmg" -o -name "*.app" | head -10
@@ -117,6 +126,7 @@ jobs:
     - name: Find DMG file
       if: matrix.platform == 'macos-latest'
       id: find_dmg
+      shell: bash
       run: |
         DMG_FILE=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
         if [ -n "$DMG_FILE" ]; then
@@ -142,6 +152,7 @@ jobs:
     
     - name: Create ZIP archive of APP bundle
       if: matrix.platform == 'macos-latest'
+      shell: bash
       run: |
         cd src-tauri/target/release/bundle/macos
         zip -r videovault-macos.app.zip videovault.app
