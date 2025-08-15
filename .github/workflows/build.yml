@@ -28,14 +28,31 @@ jobs:
     
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        target: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || matrix.platform == 'macos-latest' && 'x86_64-apple-darwin' || 'x86_64-unknown-linux-gnu' }}
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
     
     - name: Install Tauri CLI
       run: npm install -g @tauri-apps/cli
     
     - name: Build Tauri app
       run: npm run tauri:build
+      timeout-minutes: 30
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CARGO_INCREMENTAL: 0
+        RUST_BACKTRACE: 1
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

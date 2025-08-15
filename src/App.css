@@ -32,16 +32,7 @@
   --header-height-secondary: calc(var(--header-height) * 0.75);
   
   /* 确保所有header元素使用相同的基础样式 */
-  --header-base: {
-    height: var(--header-height);
-    padding: var(--header-padding-y) var(--header-padding-x);
-    border-bottom: var(--header-border);
-    background-color: var(--header-bg);
-    backdrop-filter: var(--header-backdrop);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-  };
+  /* 注意：CSS变量不能包含复杂值，这里只是注释说明 */
 }
 
 /*
