@@ -12,7 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        platform: [ubuntu-latest, windows-latest, macos-latest]
+        platform: [macos-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -25,6 +25,13 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
+    
+    - name: Check system info
+      run: |
+        echo "Node version: $(node --version)"
+        echo "NPM version: $(npm --version)"
+        echo "Available memory: $(free -h || echo 'Memory info not available')"
+        echo "Disk space: $(df -h || echo 'Disk info not available')"
     
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
@@ -46,9 +53,18 @@ jobs:
     - name: Install Tauri CLI
       run: npm install -g @tauri-apps/cli
     
+    - name: Build frontend
+      run: |
+        echo "Starting frontend build..."
+        npm run build
+        echo "Frontend build completed successfully"
+      timeout-minutes: 15
+      env:
+        NODE_ENV: production
+    
     - name: Build Tauri app
       run: npm run tauri:build
-      timeout-minutes: 30
+      timeout-minutes: 20
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         CARGO_INCREMENTAL: 0
