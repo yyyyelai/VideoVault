@@ -50,6 +50,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
     
+    - name: Cache Node modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
     - name: Install Tauri CLI
       run: npm install -g @tauri-apps/cli
     
@@ -70,7 +78,25 @@ jobs:
         CARGO_INCREMENTAL: 0
         RUST_BACKTRACE: 1
     
-    - name: Upload artifacts
+    - name: Create Release
+      if: matrix.platform == 'macos-latest'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          src-tauri/target/release/bundle/dmg/*.dmg
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        body: |
+          Automated build for VideoVault
+          
+          Platform: ${{ matrix.platform }}
+          Build Number: ${{ github.run_number }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload artifacts (fallback)
       uses: actions/upload-artifact@v4
       with:
         name: tauri-app-${{ matrix.platform }}
