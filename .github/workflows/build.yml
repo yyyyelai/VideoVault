@@ -99,7 +99,16 @@ jobs:
         draft: false
         prerelease: false
     
-    - name: Upload Release Assets
+    - name: List build artifacts
+      if: matrix.platform == 'macos-latest'
+      run: |
+        echo "Listing build artifacts..."
+        find src-tauri/target/release -name "*.dmg" -o -name "*.app" | head -10
+        ls -la src-tauri/target/release/bundle/ || echo "Bundle directory not found"
+        ls -la src-tauri/target/release/bundle/dmg/ || echo "DMG directory not found"
+        ls -la src-tauri/target/release/bundle/macos/ || echo "MacOS directory not found"
+    
+    - name: Upload DMG file
       if: matrix.platform == 'macos-latest'
       uses: actions/upload-release-asset@v1
       env:
@@ -107,8 +116,21 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: src-tauri/target/release/bundle/dmg/*.dmg
-        asset_name: videovault-${{ matrix.platform }}.dmg
+        asset_name: videovault-macos.dmg
         asset_content_type: application/octet-stream
+      continue-on-error: true
+    
+    - name: Upload APP bundle
+      if: matrix.platform == 'macos-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: src-tauri/target/release/bundle/macos/*.app
+        asset_name: videovault-macos.app
+        asset_content_type: application/octet-stream
+      continue-on-error: true
     
     - name: Upload artifacts (fallback)
       uses: actions/upload-artifact@v4
