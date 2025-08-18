@@ -154,39 +154,30 @@ impl CoverManager {
 
     /// 获取视频的封面路径
     pub fn get_video_cover_path(&self, video_path: &PathBuf) -> Option<PathBuf> {
-        println!("🔍 CoverManager: 查找视频封面，视频路径: {:?}", video_path);
         
         // 首先检查缓存
         if let Some(cover_path) = self.video_to_cover.get(video_path) {
-            println!("🔍 CoverManager: 在缓存中找到封面: {:?}", cover_path);
             if self.cover_exists(cover_path) {
-                println!("✅ CoverManager: 缓存中的封面文件存在: {:?}", cover_path);
                 return Some(cover_path.clone());
             } else {
-                println!("❌ CoverManager: 缓存中的封面文件不存在: {:?}", cover_path);
             }
         }
         
         // 如果缓存中没有，尝试查找
         let video_name = video_path.file_stem()?;
         let video_dir = video_path.parent()?;
-        
-        println!("🔍 CoverManager: 视频名称: {:?}, 视频目录: {:?}", video_name, video_dir);
-        
+                
         let cover_extensions = ["jpg", "jpeg", "png", "bmp", "webp"];
         
         for ext in &cover_extensions {
             let cover_name = format!("{}.{}", video_name.to_str()?, ext);
             let cover_path = video_dir.join(&cover_name);
-            println!("🔍 CoverManager: 尝试封面路径: {:?}", cover_path);
             
             if self.cover_exists(&cover_path) {
-                println!("✅ CoverManager: 找到封面文件: {:?}", cover_path);
                 return Some(cover_path);
             }
         }
         
-        println!("❌ CoverManager: 未找到封面文件");
         None
     }
 
