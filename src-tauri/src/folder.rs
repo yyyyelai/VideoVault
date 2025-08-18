@@ -139,6 +139,23 @@ impl FolderManager {
         current_depth: i32,
         max_depth: i32,
     ) -> Result<DirectoryNode, Box<dyn std::error::Error>> {
+        // 安全检查：防止无限递归
+        if current_depth > 100 {
+            return Ok(DirectoryNode {
+                path: path.to_string_lossy().to_string(),
+                name: path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Unknown")
+                    .to_string(),
+                is_directory: true,
+                children: Vec::new(),
+                videos: Vec::new(),
+                cover_count: 0,
+                video_count: 0,
+                cover_path: None,
+            });
+        }
+        
         // 如果达到最大深度，只返回当前目录信息
         if max_depth >= 0 && current_depth >= max_depth {
             return Ok(DirectoryNode {
@@ -162,35 +179,175 @@ impl FolderManager {
         let mut video_count = 0;
 
         // 读取目录内容
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let entry_path = entry.path();
-                    
-                    if entry_path.is_dir() {
-                        // 递归构建子目录
-                        if let Ok(child_node) = self.build_tree_recursive(&entry_path, current_depth + 1, max_depth) {
-                            children.push(child_node);
-                        }
-                    } else if entry_path.is_file() {
-                        // 检查是否为视频文件
-                        if let Some(extension) = entry_path.extension() {
-                            let ext_str = extension.to_string_lossy().to_lowercase();
-                            if ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm"].contains(&ext_str.as_str()) {
-                                // 创建视频信息
-                                if let Ok(video_info) = crate::video::VideoProcessor::new().create_video_info(entry_path.clone()) {
-                                    videos.push(video_info);
-                                    video_count += 1;
-                                    
-                                    // 检查是否有对应的封面文件
-                                    if let Some(_cover_path) = crate::cover::CoverManager::new().find_cover_for_video(&entry_path) {
-                                        cover_count += 1;
+        let entries_result = std::fs::read_dir(path);
+        match entries_result {
+            Ok(entries) => {
+                for entry in entries {
+                    match entry {
+                        Ok(entry) => {
+                            let entry_path = entry.path();
+                            
+                            if entry_path.is_dir() {
+                                // 递归构建子目录
+                                match self.build_tree_recursive(&entry_path, current_depth + 1, max_depth) {
+                                    Ok(child_node) => {
+                                        children.push(child_node);
+                                    }
+                                    Err(e) => {
+                                        // 即使子目录失败，也创建一个空的目录节点，避免完全跳过
+                                        let empty_node = DirectoryNode {
+                                            path: entry_path.to_string_lossy().to_string(),
+                                            name: entry_path.file_name()
+                                                .and_then(|n| n.to_str())
+                                                .unwrap_or("Unknown")
+                                                .to_string(),
+                                            is_directory: true,
+                                            children: Vec::new(),
+                                            videos: Vec::new(),
+                                            cover_count: 0,
+                                            video_count: 0,
+                                            cover_path: None,
+                                        };
+                                        children.push(empty_node);
+                                    }
+                                }
+                            } else if entry_path.is_file() {
+                                // 检查是否为视频文件
+                                if let Some(extension) = entry_path.extension() {
+                                    let ext_str = extension.to_string_lossy().to_lowercase();
+                                    if ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm"].contains(&ext_str.as_str()) {
+                                        // 创建视频信息
+                                        match crate::video::VideoProcessor::new().create_video_info(entry_path.clone()) {
+                                            Ok(video_info) => {
+                                                videos.push(video_info);
+                                                video_count += 1;
+                                                
+                                                // 检查是否有对应的封面文件
+                                                if let Some(_cover_path) = crate::cover::CoverManager::new().find_cover_for_video(&entry_path) {
+                                                    cover_count += 1;
+                                                }
+                                            }
+                                            Err(e) => {
+                                                // 静默处理错误
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+                        Err(e) => {
+                            // 尝试使用系统命令读取目录
+                            use std::process::Command;
+                            
+                            if let Ok(output) = Command::new("ls")
+                                .arg("-la")
+                                .arg(path.to_string_lossy().as_ref())
+                                .output() {
+                                if output.status.success() {
+                                    let output_str = String::from_utf8_lossy(&output.stdout);
+                                    
+                                    // 解析系统命令输出，提取文件和目录信息
+                                    let mut fallback_videos = Vec::new();
+                                    let mut fallback_children = Vec::new();
+                                    
+                                    let mut line_count = 0;
+                                    let max_lines = 10000; // 限制最大行数，防止内存溢出
+                                    let max_videos = 1000; // 限制最大视频数量
+                                    let max_children = 1000; // 限制最大子目录数量
+                                    
+                                    for line in output_str.lines().skip(1) { // 跳过第一行 "total ..."
+                                        line_count += 1;
+                                        if line_count > max_lines {
+                                            break;
+                                        }
+                                        
+                                        if line.starts_with('-') {
+                                            // 这是一个文件
+                                            // 使用更智能的文件名提取方法
+                                            let parts: Vec<&str> = line.split_whitespace().collect();
+                                            if parts.len() >= 9 { // ls -la 输出至少有9列
+                                                let filename = parts[8..].join(" "); // 第9列开始是文件名
+                                                
+                                                if filename.contains('.') {
+                                                    let ext = filename.split('.').last().unwrap_or("").to_lowercase();
+                                                    if ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm"].contains(&ext.as_str()) {
+                                                        if fallback_videos.len() >= max_videos {
+                                                            continue;
+                                                        }
+                                                        let file_path = path.join(&filename);
+                                                        if let Ok(video_info) = crate::video::VideoProcessor::new().create_video_info(file_path) {
+                                                            fallback_videos.push(video_info);
+                                                            video_count += 1;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else if line.starts_with('d') {
+                                            // 这是一个目录
+                                            let parts: Vec<&str> = line.split_whitespace().collect();
+                                            if parts.len() >= 9 {
+                                                let dirname = parts[8..].join(" ");
+                                                if dirname != "." && dirname != ".." {
+                                                    if fallback_children.len() >= max_children {
+                                                        continue;
+                                                    }
+                                                    let dir_path = path.join(&dirname);
+                                                    // 递归构建子目录
+                                                    if let Ok(child_node) = self.build_tree_recursive(&dir_path, current_depth + 1, max_depth) {
+                                                        fallback_children.push(child_node);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 使用备用方案的结果
+                                    children.extend(fallback_children);
+                                    videos.extend(fallback_videos);
+                                } else {
+                                    let error_str = String::from_utf8_lossy(&output.stderr);
+                                    // 静默处理错误
+                                }
+                            } else {
+                                // 静默处理错误
+                            }
+                        }
                     }
                 }
+            }
+            Err(e) => {
+                // 尝试使用系统命令读取目录
+                use std::process::Command;
+                
+                if let Ok(output) = Command::new("ls")
+                    .arg("-la")
+                    .arg(path.to_string_lossy().as_ref())
+                    .output() {
+                    if output.status.success() {
+                        let output_str = String::from_utf8_lossy(&output.stdout);
+                        // 静默处理成功
+                    } else {
+                        let error_str = String::from_utf8_lossy(&output.stderr);
+                        // 静默处理错误
+                    }
+                } else {
+                    // 静默处理错误
+                }
+                
+                // 即使目录读取失败，也返回一个空的目录节点
+                return Ok(DirectoryNode {
+                    path: path.to_string_lossy().to_string(),
+                    name: path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
+                    is_directory: true,
+                    children: Vec::new(),
+                    videos: Vec::new(),
+                    cover_count: 0,
+                    video_count: 0,
+                    cover_path: None,
+                });
             }
         }
 
@@ -251,7 +408,7 @@ impl FolderManager {
     /// 清除目录树缓存
     pub fn clear_directory_tree(&mut self, root_id: &str) {
         self.directory_trees.remove(root_id);
-        println!("已清除根文件夹 {} 的目录树缓存", root_id);
+        // 已清除根文件夹的目录树缓存
     }
 
     /// 清除目录树缓存
@@ -268,6 +425,7 @@ impl FolderManager {
             false
         }
     }
+
 }
 
 #[cfg(test)]

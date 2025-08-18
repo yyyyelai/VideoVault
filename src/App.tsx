@@ -34,12 +34,20 @@ interface VideoInfo {
   path: string;
   name: string;
   size: number;
-  duration: number | null;
+  duration: Duration | null;
   resolution: [number, number] | null;
   codec: string | null;
   audio_codec: string | null;
   created_time: string | null;
   modified_time: string | null;
+  container_format?: string | null;
+  frame_rate?: number | null;
+  bit_rate?: number | null;
+}
+
+interface Duration {
+  secs: number;
+  nanos: number;
 }
 
 interface DirectoryNode {
@@ -502,15 +510,17 @@ function App() {
   };
 
   // 格式化时长
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+  const formatDuration = (duration: Duration | null): string => {
+    if (!duration) return 'N/A';
+    const secs = duration.secs;
+    const hours = Math.floor(secs / 3600);
+    const minutes = Math.floor((secs % 3600) / 60);
+    const secsPart = Math.floor(secs % 60);
     
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secsPart.toString().padStart(2, '0')}`;
     } else {
-      return `${minutes}:${secs.toString().padStart(2, '0')}`;
+      return `${minutes}:${secsPart.toString().padStart(2, '0')}`;
     }
   };
 
@@ -916,8 +926,15 @@ console.log('currentDirectory', currentDirectory);
                   ))}
                   
                   {/* 当前目录的视频 - 列表视图和网格视图都显示 */}
-                  {currentDirectory.videos.map((video, index) => (
-                    <div key={`${currentDirectory.path}-${index}`} className="video-card">
+                  {currentDirectory.videos.map((video, index) => {
+                    // 调试信息
+                    console.log(`🎬 视频 "${video.name}" 的 duration:`, video.duration);
+                    if (video.duration) {
+                      console.log(`⏱️ 格式化后的时长: ${formatDuration(video.duration)}`);
+                    }
+                    
+                    return (
+                      <div key={`${currentDirectory.path}-${index}`} className="video-card">
                       {viewMode === 'grid' ? (
                         // 网格模式：显示封面和悬停效果
                         <>
@@ -972,7 +989,12 @@ console.log('currentDirectory', currentDirectory);
                                 <span className="video-resolution">{video.resolution[0]}x{video.resolution[1]}</span>
                               )}
                               {video.duration && (
-                                <span className="video-duration">{formatDuration(video.duration)}</span>
+                                <span className="video-duration" title={`${video.duration.secs}秒 ${video.duration.nanos}纳秒`}>
+                                  {formatDuration(video.duration)}
+                                </span>
+                              )}
+                              {video.container_format && (
+                                <span className="video-container">{video.container_format}</span>
                               )}
                             </div>
                           </div>
@@ -995,7 +1017,12 @@ console.log('currentDirectory', currentDirectory);
                                 <span className="folder-cover-count">{video.resolution[0]}x{video.resolution[1]}</span>
                               )}
                               {video.duration && (
-                                <span className="folder-cover-count">{formatDuration(video.duration)}</span>
+                                <span className="folder-cover-count" title={`${video.duration.secs}秒 ${video.duration.nanos}纳秒`}>
+                                  {formatDuration(video.duration)}
+                                </span>
+                              )}
+                              {video.codec && (
+                                <span className="folder-cover-count">{video.codec}</span>
                               )}
                             </div>
                           </div>
@@ -1020,7 +1047,8 @@ console.log('currentDirectory', currentDirectory);
                         </div>
                       )}
                     </div>
-                  ))}
+                  );
+                })}
         </div>
               </>
             )}
