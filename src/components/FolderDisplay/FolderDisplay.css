@@ -1,0 +1,187 @@
+/* 文件夹容器 */
+.folder-container {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.folder-container.grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.folder-container.list {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+/* 目录节点 */
+.directory-node {
+  background: white;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+}
+
+.directory-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.directory-node.list-mode {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.directory-node.list-mode:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 文件夹节点 */
+.folder-node {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.folder-node.clickable {
+  cursor: pointer;
+}
+
+.folder-node:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+/* 如果是列表模式，那么folder-node的flex-direction是row */
+.list-mode .folder-node {
+  flex-direction: row;
+}
+.list-mode .folder-info {
+  flex-direction: row;
+}
+
+/* 文件夹封面 */
+.folder-cover {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+}
+
+.folder-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.directory-node:hover .folder-cover img {
+  transform: scale(1.05);
+}
+
+/* 文件夹信息 */
+.folder-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
+.folder-icon-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.folder-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.folder-stats {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.folder-video-count,
+.folder-cover-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.folder-node.clickable {
+  align-items: flex-start;
+}
+
+/* 列表模式特殊样式 */
+.directory-node.list-mode .folder-node {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.directory-node.list-mode .folder-node:hover {
+  background-color: hsl(var(--accent));
+}
+
+.directory-node.list-mode .folder-info {
+  padding: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 1rem;
+}
+
+.directory-node.list-mode .folder-icon-name {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.directory-node.list-mode .folder-name {
+  font-size: 0.875rem;
+  max-width: 300px;
+}
+
+.directory-node.list-mode .folder-cover {
+  display: none;
+}
+
+/* 文件夹箭头 */
+.folder-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.arrow-icon {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  font-weight: bold;
+}
+
+.directory-node.list-mode:hover .arrow-icon {
+  color: var(--primary-color);
+}

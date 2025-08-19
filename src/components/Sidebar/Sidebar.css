@@ -1,0 +1,212 @@
+/* 侧边栏 */
+.sidebar {
+  width: 280px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 侧边栏头部 */
+.sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0;
+  text-align: center;
+}
+
+/* 文件夹区域 */
+.folder-section {
+  flex: 1;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-header {
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 文件夹列表 */
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.folder-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.folder-item.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.folder-item.active .folder-name {
+  color: white;
+}
+
+
+.folder-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+.folder-info-name {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  flex-direction: row;
+}
+.folder-info-name .folder-name {
+  color: #222!important;
+}
+
+.folder-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.delete-folder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.folder-item:hover .delete-folder-btn {
+  opacity: 1;
+}
+
+.delete-folder-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* 历史记录区域 */
+.history-section {
+  padding: 1rem;
+  flex-shrink: 0;
+}
+
+.history-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cleanup-history-btn,
+.clear-history-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cleanup-history-btn:hover {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.clear-history-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* 历史记录列表 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.history-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.history-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 历史记录空状态 */
+.history-empty {
+  text-align: center;
+  padding: 1rem 0;
+  color: var(--text-muted);
+}
+
+.history-empty p {
+  margin: 0.25rem 0;
+  font-size: 0.75rem;
+}
+
+.history-hint {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}

@@ -202,10 +202,6 @@ impl VideoProcessor {
         let video_metadata = self.get_video_metadata_ffprobe(&path)
             .unwrap_or_default();
 
-        println!("视频 {} 的元数据: 时长={:?}, 分辨率={:?}x{:?}, 编码={:?}, 音频编码={:?}, 容器={:?}", 
-                 name, video_metadata.duration, video_metadata.width, video_metadata.height, 
-                 video_metadata.video_codec, video_metadata.audio_codec, video_metadata.container_format);
-
         Ok(VideoInfo {
             path,
             name,
