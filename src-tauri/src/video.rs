@@ -1,11 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::fs::File;
-use std::io::Read;
-use symphonia::core::{
-    io::MediaSourceStream,
-};
+use std::process::Command;
+use std::str::FromStr;
 
 /// 视频文件信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,105 +42,152 @@ impl VideoProcessor {
         Self
     }
 
-    /// 使用 Symphonia 解析视频元数据
-    fn get_video_metadata_symphonia(&self, path: &PathBuf) -> Option<VideoMetadata> {
-        let file = match File::open(path) {
-            Ok(file) => file,
+    /// 使用 ffprobe 解析视频元数据
+    pub fn get_video_metadata_ffprobe(&self, path: &PathBuf) -> Option<VideoMetadata> {
+        let path_str = path.to_string_lossy();
+        
+        // 构建 ffprobe 命令
+        let output = Command::new("ffprobe")
+            .args(&[
+                "-v", "quiet",
+                "-print_format", "json",
+                "-show_format",
+                "-show_streams",
+                &path_str
+            ])
+            .output();
+        
+        let output = match output {
+            Ok(output) => output,
             Err(e) => {
-                println!("无法打开文件 {}: {}", path.display(), e);
+                println!("执行 ffprobe 命令失败: {}", e);
                 return None;
             }
         };
-
-        let src = Box::new(file);
-        let mss = MediaSourceStream::new(src, Default::default());
         
-        let mut probed = match symphonia::default::get_probe().format(&Default::default(), mss, &Default::default(), &Default::default()) {
-            Ok(probed) => probed,
+        if !output.status.success() {
+            let error = String::from_utf8_lossy(&output.stderr);
+            println!("ffprobe 命令执行失败: {}", error);
+            return None;
+        }
+        
+        let json_str = match String::from_utf8(output.stdout) {
+            Ok(s) => s,
             Err(e) => {
-                println!("Symphonia 格式探测失败: {}", e);
+                println!("解析 ffprobe 输出失败: {}", e);
                 return None;
             }
         };
         
-        let format = probed.format;
+        // 解析 JSON 输出
+        let json: serde_json::Value = match serde_json::from_str(&json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("解析 JSON 失败: {}", e);
+                return None;
+            }
+        };
+        
         let mut metadata = VideoMetadata::default();
         
-        // 容器格式 - 从文件扩展名推断
+        // 从文件扩展名获取容器格式
         if let Some(ext) = path.extension() {
             metadata.container_format = ext.to_string_lossy().to_uppercase();
         }
         
-        // 遍历所有轨道，查找视频流和音频流
-        for track in format.tracks() {
-            let params = &track.codec_params;
-            
-            // 检查是否为视频轨道 - 通过编解码器类型和特征判断
-            let codec_name = format!("{:?}", params.codec);
-            let is_video_codec = codec_name.contains("H264") || 
-                                codec_name.contains("H265") || 
-                                codec_name.contains("VP8") || 
-                                codec_name.contains("VP9") ||
-                                codec_name.contains("AV1") ||
-                                codec_name.contains("MPEG") ||
-                                codec_name.contains("Theora");
-            
-            // 视频轨道通常没有 sample_rate
-            let has_video_characteristics = params.sample_rate.is_none();
-            
-            if is_video_codec || has_video_characteristics {
-                metadata.has_video = true;
-                metadata.video_codec = Some(codec_name.clone());
-                
-                // 注意：Symphonia 的 CodecParameters 不直接提供分辨率信息
-                // 分辨率信息通常需要从编解码器特定的扩展数据中解析
-                println!("找到视频轨道，编解码器: {}", codec_name);
-                
-                // 尝试从时间基准计算时长
-                if let Some(time_base) = params.time_base {
-                    if let Some(n_frames) = params.n_frames {
-                        let time = time_base.calc_time(n_frames);
-                        let duration_sec = time.seconds as f64 + time.frac;
-                        metadata.duration = Some(Duration::from_secs_f64(duration_sec));
-                        println!("从视频轨道计算时长: {:.2} 秒", duration_sec);
-                    }
+        // 解析格式信息
+        if let Some(format_info) = json.get("format") {
+            if let Some(duration_str) = format_info.get("duration") {
+                if let Some(duration_sec) = duration_str.as_str().and_then(|s| f64::from_str(s).ok()) {
+                    metadata.duration = Some(Duration::from_secs_f64(duration_sec));
                 }
-                
-                // 尝试获取帧率信息
-                if let Some(time_base) = params.time_base {
-                    if let Some(n_frames) = params.n_frames {
-                        if let Some(duration) = metadata.duration {
-                            let frame_rate = n_frames as f64 / duration.as_secs_f64();
-                            metadata.frame_rate = Some(frame_rate);
-                            println!("计算帧率: {:.2} fps", frame_rate);
-                        }
-                    }
-                }
-            } else {
-                // 这可能是音频轨道
-                metadata.has_audio = true;
-                metadata.audio_codec = Some(codec_name);
-                
-                // 尝试从时间基准计算时长（如果视频轨道没有时长信息）
-                if metadata.duration.is_none() {
-                    if let Some(time_base) = params.time_base {
-                        if let Some(n_frames) = params.n_frames {
-                            let time = time_base.calc_time(n_frames);
-                            let duration_sec = time.seconds as f64 + time.frac;
-                            metadata.duration = Some(Duration::from_secs_f64(duration_sec));
-                            println!("从音频轨道计算时长: {:.2} 秒", duration_sec);
-                        }
-                    }
+            }
+            
+            if let Some(bit_rate_str) = format_info.get("bit_rate") {
+                if let Some(bit_rate) = bit_rate_str.as_str().and_then(|s| u32::from_str(s).ok()) {
+                    metadata.bit_rate = Some(bit_rate);
                 }
             }
         }
         
-        // 获取元数据标签
-        if let Some(_metadata_ref) = probed.metadata.get() {
-            println!("找到元数据，但暂时跳过标签解析");
+        // 解析流信息
+        if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
+            for stream in streams {
+                let codec_type = stream.get("codec_type").and_then(|t| t.as_str());
+                
+                match codec_type {
+                    Some("video") => {
+                        metadata.has_video = true;
+                        
+                        // 视频编码格式
+                        if let Some(codec_name) = stream.get("codec_name").and_then(|c| c.as_str()) {
+                            metadata.video_codec = Some(codec_name.to_string());
+                        }
+                        
+                        // 分辨率
+                        if let (Some(width), Some(height)) = (
+                            stream.get("width").and_then(|w| w.as_u64()),
+                            stream.get("height").and_then(|h| h.as_u64())
+                        ) {
+                            metadata.width = Some(width as u32);
+                            metadata.height = Some(height as u32);
+                        }
+                        
+                        // 帧率
+                        if let Some(r_frame_rate) = stream.get("r_frame_rate").and_then(|r| r.as_str()) {
+                            if let Some(frame_rate) = self.parse_frame_rate(r_frame_rate) {
+                                metadata.frame_rate = Some(frame_rate);
+                            }
+                        }
+                        
+                        // 如果格式中没有时长，尝试从视频流获取
+                        if metadata.duration.is_none() {
+                            if let Some(duration_str) = stream.get("duration").and_then(|d| d.as_str()) {
+                                if let Some(duration_sec) = f64::from_str(duration_str).ok() {
+                                    metadata.duration = Some(Duration::from_secs_f64(duration_sec));
+                                }
+                            }
+                        }
+                    },
+                    Some("audio") => {
+                        metadata.has_audio = true;
+                        
+                        // 音频编码格式
+                        if let Some(codec_name) = stream.get("codec_name").and_then(|c| c.as_str()) {
+                            metadata.audio_codec = Some(codec_name.to_string());
+                        }
+                        
+                        // 如果还没有时长信息，尝试从音频流获取
+                        if metadata.duration.is_none() {
+                            if let Some(duration_str) = stream.get("duration").and_then(|d| d.as_str()) {
+                                if let Some(duration_sec) = f64::from_str(duration_str).ok() {
+                                    metadata.duration = Some(Duration::from_secs_f64(duration_sec));
+                                }
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
         }
         
         Some(metadata)
+    }
+    
+    /// 解析帧率字符串 (例如: "30000/1001")
+    fn parse_frame_rate(&self, frame_rate_str: &str) -> Option<f64> {
+        let parts: Vec<&str> = frame_rate_str.split('/').collect();
+        if parts.len() == 2 {
+            if let (Ok(numerator), Ok(denominator)) = (
+                f64::from_str(parts[0]),
+                f64::from_str(parts[1])
+            ) {
+                if denominator != 0.0 {
+                    return Some(numerator / denominator);
+                }
+            }
+        }
+        None
     }
 
     /// 从文件路径创建视频信息
@@ -154,8 +198,8 @@ impl VideoProcessor {
             .unwrap_or("Unknown")
             .to_string();
 
-        // 优先使用 Symphonia 解析，失败时使用备用方案
-        let video_metadata = self.get_video_metadata_symphonia(&path)
+        // 使用 ffprobe 解析视频元数据
+        let video_metadata = self.get_video_metadata_ffprobe(&path)
             .unwrap_or_default();
 
         println!("视频 {} 的元数据: 时长={:?}, 分辨率={:?}x{:?}, 编码={:?}, 音频编码={:?}, 容器={:?}", 
@@ -186,7 +230,7 @@ impl VideoProcessor {
 
 /// 视频元数据结构
 #[derive(Debug, Clone, Default)]
-struct VideoMetadata {
+pub struct VideoMetadata {
     pub duration: Option<Duration>,
     pub width: Option<u32>,
     pub height: Option<u32>,

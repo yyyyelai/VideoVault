@@ -1,4 +1,4 @@
-mod video;
+pub mod video;
 mod cover;
 mod folder;
 
@@ -74,10 +74,8 @@ fn scan_directory(state: State<AppState>, root_id: String) -> Result<DirectoryNo
     
     // 从根目录开始扫描
     if let Some(root_folder) = folder_manager.get_root_folder(&root_id) {
-        println!("找到根文件夹: {}", root_folder.path.display());
         
         // 先扫描封面文件
-        println!("开始扫描封面文件...");
         if let Err(e) = cover_manager.scan_covers(&root_folder.path) {
             println!("扫描封面文件失败: {}", e);
         } else {
@@ -87,7 +85,6 @@ fn scan_directory(state: State<AppState>, root_id: String) -> Result<DirectoryNo
         // 构建目录树
         match folder_manager.build_directory_tree(&root_id) {
             Ok(directory_tree) => {
-                println!("目录树构建完成");
                 Ok(directory_tree)
             }
             Err(e) => {
@@ -104,7 +101,6 @@ fn scan_directory(state: State<AppState>, root_id: String) -> Result<DirectoryNo
 // Tauri命令：获取目录树
 #[tauri::command]
 fn get_directory_tree(state: State<AppState>, root_id: String) -> Result<Option<DirectoryNode>, String> {
-    println!("获取目录树，root_id: {}", root_id);
     let folder_manager = state.folder_manager.lock().map_err(|_| "无法获取文件夹管理器锁".to_string())?;
     Ok(folder_manager.get_directory_tree(&root_id).cloned())
 }
@@ -122,7 +118,6 @@ fn get_video_info(video_path: String) -> Result<VideoInfo, String> {
 // Tauri命令：获取封面信息
 #[tauri::command]
 fn get_cover_info(state: State<AppState>, cover_path: String) -> Result<CoverInfo, String> {
-    println!("获取封面信息: {}", cover_path);
     let cover_manager = state.cover_manager.lock().map_err(|_| "无法获取封面管理器锁".to_string())?;
     let path = PathBuf::from(cover_path);
     cover_manager.get_cover(&path)
@@ -173,7 +168,6 @@ fn execute_command(command: String, args: Vec<String>) -> Result<(), String> {
 // Tauri命令：查找视频的封面
 #[tauri::command]
 fn find_cover_for_video(state: State<AppState>, video_path: String) -> Result<Option<String>, String> {
-    println!("🔍 查找视频封面，视频路径: {}", video_path);
     
     let path = PathBuf::from(&video_path);
     let cover_manager = state.cover_manager.lock().map_err(|_| "无法获取封面管理器锁".to_string())?;
@@ -181,7 +175,6 @@ fn find_cover_for_video(state: State<AppState>, video_path: String) -> Result<Op
     // 使用动态查找方法，不依赖缓存
     match cover_manager.get_video_cover_path(&path) {
         Some(cover_path) => {
-            println!("✅ 找到封面路径: {}", cover_path.display());
             Ok(Some(cover_path.to_string_lossy().to_string()))
         }
         None => {
