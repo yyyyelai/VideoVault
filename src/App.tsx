@@ -139,20 +139,20 @@ function App() {
       // 检查是否已存在相同路径的文件夹
       if (isPathExists(path)) {
         const existingFolder = findFolderById(selectedFolder || '');
-        if (existingFolder) {
-          // 保存到历史记录
+      if (existingFolder) {
+        // 保存到历史记录
           saveFolderHistory(path);
 
-          // 选择现有的文件夹并刷新
-          setSelectedFolder(existingFolder.id);
-          await scanDirectory(existingFolder.id);
+        // 选择现有的文件夹并刷新
+        setSelectedFolder(existingFolder.id);
+        await scanDirectory(existingFolder.id);
 
           // 关闭模态框
-          setShowAddFolderModal(false);
+        setShowAddFolderModal(false);
           setInitialPath(''); // 重置初始路径
 
-          // 显示成功提示信息
-          setSuccessMessage(`文件夹 "${existingFolder.name}" 已存在，已自动刷新`);
+        // 显示成功提示信息
+        setSuccessMessage(`文件夹 "${existingFolder.name}" 已存在，已自动刷新`);
         }
         return;
       }

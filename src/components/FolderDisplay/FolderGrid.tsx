@@ -16,6 +16,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   viewMode,
   onNavigate,
 }) => {
+  console.log(folders);
   if (folders.length === 0) {
     return null;
   }

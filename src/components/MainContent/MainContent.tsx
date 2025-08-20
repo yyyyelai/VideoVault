@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FolderOpen, RefreshCw } from 'lucide-react';
+import { FolderOpen, RefreshCw, Search } from 'lucide-react';
 import { AnimatedGridPattern } from '../magicui/animated-grid-pattern';
 import { FolderGrid } from '../FolderDisplay/FolderGrid';
 import { VideoGrid } from '../VideoDisplay/VideoGrid';
@@ -8,6 +8,17 @@ import { ViewControls } from './ViewControls';
 import { type DirectoryNode, type ViewMode, type VideoInfo } from '../../types';
 import { useVideoPlayer } from '../../hooks/useVideoPlayer';
 import './MainContent.css';
+import { sortData } from '../../hooks/useSortData';
+import { RainbowButton } from '../magicui/rainbow-button';
+import { Input } from '../shadcn/input';
+import PinyinMatch from 'pinyin-match';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../shadcn/select';
 
 interface MainContentProps {
   selectedFolder: string | null;
@@ -42,7 +53,8 @@ export const MainContent: React.FC<MainContentProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const { openFolder } = useVideoPlayer();
-
+  const [sortKeyList, setSortKeyList] = useState<string[]>(['name']);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   // 打开当前文件夹
   const handleOpenCurrentFolder = async () => {
     if (currentDirectory) {
@@ -52,6 +64,21 @@ export const MainContent: React.FC<MainContentProps> = ({
         console.error('无法打开文件夹:', error);
       }
     }
+  };
+
+  // 过滤、搜索视频和文件夹
+  const filterVideosAndFolders = <T extends DirectoryNode | VideoInfo>(data: T[]) => {
+    let filteredData = data;
+    
+    // 如果有搜索查询，先进行搜索过滤
+    if (searchQuery.trim()) {
+      filteredData = data.filter(item => {
+        return PinyinMatch.match(item.name, searchQuery) !== false;
+      });
+    }
+    
+    // 然后进行排序
+    return sortData(filteredData, sortKeyList);
   };
 
   if (isLoading) {
@@ -109,33 +136,61 @@ export const MainContent: React.FC<MainContentProps> = ({
         ) : (
           <>
             {/* 当前目录信息 */}
-            <div className="current-directory-info">
-              <div className="directory-info-content">
-                <p>包含 {currentDirectory.videos.length || 0} 个视频文件，{currentDirectory.children.length || 0} 个文件夹</p>
+            <div className="filter-container">
+              {/* 搜索框 */}
+              <div className="search-container">
+                <div className="search-input-wrapper">
+                  <Search size={16} className="search-icon" />
+                  <Input
+                    type="text"
+                    placeholder="搜索文件夹或视频名称..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="search-input"
+                  />
+                </div>
               </div>
+              {/* 排序器 */}
+              <div className="sort-container">
+                <Select value={sortKeyList.join(',')} onValueChange={(value) => setSortKeyList(value.split(','))}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="选择排序方式" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">按名称排序</SelectItem>
+                    <SelectItem value="modified_time,secs_since_epoch">按修改时间排序</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 按钮操作区 */}
               <div className="action-buttons">
-                <button
+                <RainbowButton
                   className="open-folder-btn"
                   onClick={handleOpenCurrentFolder}
                   title="在系统文件管理器中打开此文件夹"
                 >
                   <FolderOpen size={16} />
                   <span>打开文件夹</span>
-                </button>
-                <button
+                </RainbowButton>
+                <RainbowButton
                   className="rescan-btn"
                   onClick={onRescanCurrentFolder}
                   title="重新扫描当前文件夹"
                 >
                   <RefreshCw size={16} />
                   <span>重新扫描</span>
-                </button>
+                </RainbowButton>
+              </div>
+            </div>
+            <div className="current-directory-info">
+              <div className="directory-info-content">
+                <p>包含 {currentDirectory.videos.length || 0} 个视频文件，{currentDirectory.children.length || 0} 个文件夹</p>
               </div>
             </div>
 
             {/* 文件夹展示 */}
             <FolderGrid
-              folders={currentDirectory.children}
+              folders={filterVideosAndFolders(currentDirectory.children)}
               folderCoverPaths={folderCoverPaths}
               viewMode={viewMode}
               onNavigate={onNavigateToDirectory}
@@ -143,7 +198,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
             {/* 视频展示 */}
             <VideoGrid
-              videos={currentDirectory.videos}
+              videos={filterVideosAndFolders(currentDirectory.videos)}
               coverPaths={coverPaths}
               viewMode={viewMode}
               onPlay={onPlayVideo}

@@ -109,6 +109,26 @@
   white-space: nowrap;
 }
 
+.video-codec {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.video-container-format {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.video-resolution {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.video-duration {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
 /* 列表模式样式 */
 .video-card.list-mode {
   background: transparent;

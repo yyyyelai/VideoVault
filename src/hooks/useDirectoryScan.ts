@@ -35,6 +35,7 @@ export const useDirectoryScan = () => {
 
         // 重新扫描完成后，刷新当前目录的统计信息
         const updatedDirectory = await invoke<DirectoryNode>('scan_directory', { rootId: selectedFolder });
+        console.log('updatedDirectory', updatedDirectory);
         setCurrentDirectory(updatedDirectory);
 
         // 重置面包屑到根目录

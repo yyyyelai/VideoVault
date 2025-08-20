@@ -49,9 +49,11 @@ export const FolderNode: React.FC<FolderNodeProps> = ({
               <HardDrive className="w-4 h-4 text-primary" />
               <h4 className="folder-name">{folder.name}</h4>
             </div>
-            {folder.videos.length ? <div className="folder-stats">
-              <span className="folder-video-count">{folder.videos.length} 视频</span>
-            </div> : null}
+            <div className="folder-stats">
+              {folder.videos.length > 0 && <span className="folder-video-count">{folder.videos.length} 视频</span>}
+              {folder.children.length > 0 && <span className="folder-video-count">{folder.children.length} 子文件夹</span>}
+            </div>
+            {folder.modified_time && <span className="folder-stats">{new Date(folder.modified_time.secs_since_epoch * 1000).toLocaleString()}</span>}
           </div>
         </div>
       </div>
@@ -76,6 +78,7 @@ export const FolderNode: React.FC<FolderNodeProps> = ({
             {folder.children.length > 0 && (
               <span className="folder-cover-count">{folder.children.length} 子文件夹</span>
             )}
+            {folder.modified_time && <span className="folder-stats">{new Date(folder.modified_time.secs_since_epoch * 1000).toLocaleString()}</span>}
           </div>
         </div>
       </div>

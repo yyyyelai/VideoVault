@@ -60,7 +60,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
 
         <div className="video-info">
           <h4 className="video-title" title={video.name}>
-            {video.name}
+            {video.name.split('.')[0]}
           </h4>
           <div className="video-meta">
             <span className="video-size">{formatFileSize(video.size)}</span>
@@ -74,6 +74,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             )}
             {video.container_format && (
               <span className="video-container-format">{video.container_format}</span>
+            )}
+            {video?.modified_time?.secs_since_epoch && (
+              <span className="video-size">
+                {new Date(video.modified_time.secs_since_epoch * 1000).toLocaleString()}
+              </span>
             )}
           </div>
         </div>
@@ -92,7 +97,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
         <div className="folder-info">
           <div className="folder-icon-name">
             <div className="video-icon">🎬</div>
-            <div className="folder-name">{video.name}</div>
+            <div className="folder-name">{video.name.split('.')[0]}</div>
           </div>
           <div className="folder-stats">
             <span className="folder-video-count">{formatFileSize(video.size)}</span>
@@ -104,8 +109,14 @@ export const VideoCard: React.FC<VideoCardProps> = ({
                 {formatDuration(video.duration)}
               </span>
             )}
-            {video.codec && (
-              <span className="folder-cover-count">{video.codec}</span>
+            {video.container_format && (
+              <span className="folder-cover-count">{video.container_format}</span>
+            )}
+            {/* 最新修改时间, 格式化成YYYY-MM-DD HH:MM:SS */}
+            {video?.modified_time?.secs_since_epoch && (
+              <span className="folder-cover-count">
+                {new Date(video.modified_time.secs_since_epoch * 1000).toLocaleString()}
+              </span>
             )}
           </div>
         </div>

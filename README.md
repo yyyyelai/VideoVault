@@ -161,6 +161,7 @@ npm run tauri build
 - [ ] 主题切换功能
 - [ ] 快捷键支持
 - [ ] 拖拽操作支持
+- [ ] 使用pinyin-match增加搜索能力
 
 ## UI/UX 特色
 

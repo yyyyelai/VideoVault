@@ -66,6 +66,8 @@ pub struct DirectoryNode {
     pub video_count: usize,
     /// 当前目录的代表性封面路径（来自第一个子节点或视频）
     pub cover_path: Option<PathBuf>,
+    /// 目录修改时间
+    pub modified_time: Option<std::time::SystemTime>,
 }
 
 /// 文件夹管理器
@@ -90,6 +92,11 @@ impl FolderManager {
 
     /// 创建空的目录节点
     fn create_empty_directory_node(&self, path: &PathBuf) -> DirectoryNode {
+        // 获取目录的修改时间
+        let modified_time = std::fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok());
+            
         DirectoryNode {
             path: path.to_string_lossy().to_string(),
             name: path.file_name()
@@ -102,6 +109,7 @@ impl FolderManager {
             cover_count: 0,
             video_count: 0,
             cover_path: None,
+            modified_time,
         }
     }
 
@@ -114,6 +122,7 @@ impl FolderManager {
         cover_count: usize,
         video_count: usize,
         cover_path: Option<PathBuf>,
+        modified_time: Option<std::time::SystemTime>,
     ) -> DirectoryNode {
         DirectoryNode {
             path: path.to_string_lossy().to_string(),
@@ -127,6 +136,7 @@ impl FolderManager {
             cover_count,
             video_count,
             cover_path,
+            modified_time,
         }
     }
 
@@ -266,6 +276,11 @@ impl FolderManager {
             None
         };
 
+        // 获取目录的修改时间
+        let modified_time = std::fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok());
+            
         Ok(self.create_directory_node(
             path,
             children,
@@ -273,6 +288,7 @@ impl FolderManager {
             total_cover_count,
             total_video_count,
             cover_path,
+            modified_time,
         ))
     }
 
@@ -436,6 +452,11 @@ impl FolderManager {
     ) -> Result<DirectoryNode, Box<dyn std::error::Error>> {
         // 安全检查：防止无限递归
         if current_depth > 100 {
+            // 获取目录的修改时间
+            let modified_time = std::fs::metadata(path)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok());
+                
             return Ok(DirectoryNode {
                 path: path.to_string_lossy().to_string(),
                 name: path.file_name()
@@ -448,11 +469,17 @@ impl FolderManager {
                 cover_count: 0,
                 video_count: 0,
                 cover_path: None,
+                modified_time,
             });
         }
         
         // 如果达到最大深度，只返回当前目录信息
         if max_depth >= 0 && current_depth >= max_depth {
+            // 获取目录的修改时间
+            let modified_time = std::fs::metadata(path)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok());
+                
             return Ok(DirectoryNode {
                 path: path.to_string_lossy().to_string(),
                 name: path.file_name()
@@ -465,6 +492,7 @@ impl FolderManager {
                 cover_count: 0,
                 video_count: 0,
                 cover_path: None,
+                modified_time,
             });
         }
 
@@ -490,6 +518,11 @@ impl FolderManager {
                                     }
                                     Err(e) => {
                                         // 即使子目录失败，也创建一个空的目录节点，避免完全跳过
+                                        // 获取目录的修改时间
+                                        let modified_time = std::fs::metadata(&entry_path)
+                                            .ok()
+                                            .and_then(|metadata| metadata.modified().ok());
+                                            
                                         let empty_node = DirectoryNode {
                                             path: entry_path.to_string_lossy().to_string(),
                                             name: entry_path.file_name()
@@ -502,6 +535,7 @@ impl FolderManager {
                                             cover_count: 0,
                                             video_count: 0,
                                             cover_path: None,
+                                            modified_time,
                                         };
                                         children.push(empty_node);
                                     }
@@ -630,6 +664,11 @@ impl FolderManager {
                 }
                 
                 // 即使目录读取失败，也返回一个空的目录节点
+                // 获取目录的修改时间
+                let modified_time = std::fs::metadata(path)
+                    .ok()
+                    .and_then(|metadata| metadata.modified().ok());
+                    
                 return Ok(DirectoryNode {
                     path: path.to_string_lossy().to_string(),
                     name: path.file_name()
@@ -642,6 +681,7 @@ impl FolderManager {
                     cover_count: 0,
                     video_count: 0,
                     cover_path: None,
+                    modified_time,
                 });
             }
         }
@@ -662,6 +702,11 @@ impl FolderManager {
             None
         };
 
+        // 获取目录的修改时间
+        let modified_time = std::fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok());
+            
         Ok(DirectoryNode {
             path: path.to_string_lossy().to_string(),
             name: path.file_name()
@@ -674,6 +719,7 @@ impl FolderManager {
             cover_count: total_cover_count,
             video_count: total_video_count,
             cover_path,
+            modified_time,
         })
     }
 

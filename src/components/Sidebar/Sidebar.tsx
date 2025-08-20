@@ -43,7 +43,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="section-header">
           <RainbowButton
             onClick={onShowAddFolderModal}
-            className="h-8 px-3 text-xs my-2"
           >
             <FolderPlus size={16} />
             添加文件夹

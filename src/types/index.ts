@@ -18,7 +18,10 @@ export interface VideoInfo {
   codec: string | null;
   audio_codec: string | null;
   created_time: string | null;
-  modified_time: string | null;
+  modified_time: {
+    secs_since_epoch: number;
+    nanos_since_epoch: number;
+  } | null;
   container_format?: string | null;
   frame_rate?: number | null;
   bit_rate?: number | null;
@@ -40,6 +43,10 @@ export interface DirectoryNode {
   cover_count: number;
   video_count: number;
   cover_path?: string;
+  modified_time: {
+    secs_since_epoch: number;
+    nanos_since_epoch: number;
+  } | null;
 }
 
 // 视图模式类型
