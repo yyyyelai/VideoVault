@@ -43,11 +43,8 @@ fn is_dir_writable(dir: &Path) -> bool {
 fn get_system_volume_key(root: &Path) -> Result<String, String> {
     #[cfg(windows)]
     {
-        use std::os::windows::fs::MetadataExt;
         use std::path::Component;
-
-        let md = fs::metadata(root).map_err(|e| e.to_string())?;
-        let file_index = md.file_index();
+        use std::process::Command;
 
         // 解析盘符（若有）
         let mut drive_letter: Option<char> = None;
@@ -60,8 +57,40 @@ fn get_system_volume_key(root: &Path) -> Result<String, String> {
             }
         }
 
-        let drive_str = drive_letter.map(|c| c.to_string()).unwrap_or_else(|| "?".into());
-        return Ok(format!("win:{}:{:016X}", drive_str, file_index));
+        let drive = drive_letter.map(|c| format!("{}:", c)).unwrap_or_else(|| "C:".to_string());
+
+        // 调用 `vol X:` 获取卷序列号（兼容稳定版 Rust，无需不稳定 API）
+        let output = Command::new("cmd")
+            .args(["/C", "vol", &drive])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let serial = if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // 典型输出包含 "Volume Serial Number is XXXX-XXXX"
+            stdout
+                .lines()
+                .find_map(|line| {
+                    let lower = line.to_lowercase();
+                    if lower.contains("serial") {
+                        // 提取最后一个以字母数字和 '-' 组成的分段
+                        let tokens: Vec<&str> = line.split_whitespace().collect();
+                        tokens
+                            .iter()
+                            .rev()
+                            .find(|tok| tok.chars().all(|ch| ch.is_ascii_hexdigit() || ch == '-'))
+                            .map(|s| s.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| "UNKNOWN".to_string())
+        } else {
+            "UNKNOWN".to_string()
+        };
+
+        let drive_str = drive_letter.map(|c| c.to_string()).unwrap_or_else(|| "C".into());
+        return Ok(format!("win:{}:{}", drive_str, serial));
     }
 
     #[cfg(unix)]
