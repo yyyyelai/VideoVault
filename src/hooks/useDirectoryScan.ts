@@ -8,6 +8,7 @@ export const useDirectoryScan = () => {
   const [breadcrumb, setBreadcrumb] = useState<DirectoryNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rootDirectoryCache, setRootDirectoryCache] = useState<DirectoryNode | null>(null);
 
   // 扫描目录
   const scanDirectory = async (rootId: string) => {
@@ -17,6 +18,7 @@ export const useDirectoryScan = () => {
       const directoryTree = await invoke<DirectoryNode>('scan_directory', { rootId });
       setCurrentDirectory(directoryTree);
       setSelectedFolder(rootId);
+      setRootDirectoryCache(directoryTree);
       // 重置面包屑，因为现在在根目录
       setBreadcrumb([]);
     } catch (error) {
@@ -37,6 +39,7 @@ export const useDirectoryScan = () => {
         const updatedDirectory = await invoke<DirectoryNode>('scan_directory', { rootId: selectedFolder });
         console.log('updatedDirectory', updatedDirectory);
         setCurrentDirectory(updatedDirectory);
+        setRootDirectoryCache(updatedDirectory);
 
         // 重置面包屑到根目录
         setBreadcrumb([]);
@@ -93,15 +96,18 @@ export const useDirectoryScan = () => {
     setBreadcrumb([]);
     setError(null);
     setIsLoading(false);
+    setRootDirectoryCache(null);
   };
 
   // 获取根目录数据（用于快速切换，不重新扫描）
   const getRootDirectory = (): DirectoryNode | null => {
-    // 如果当前在根目录，直接返回当前目录
+    // 优先返回缓存的根目录；如果缓存不存在且当前就在根目录，返回当前目录
+    if (rootDirectoryCache) {
+      return rootDirectoryCache;
+    }
     if (currentDirectory && breadcrumb.length === 0) {
       return currentDirectory;
     }
-    // 否则返回 null，表示需要重新扫描
     return null;
   };
 
