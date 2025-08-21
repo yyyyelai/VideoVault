@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
+import type { FolderHistoryItem } from '../types';
+import { normalizePath } from '../utils/formatters';
 
 export const useFolderHistory = () => {
-  const [folderHistory, setFolderHistory] = useState<string[]>([]);
+  const [folderHistory, setFolderHistory] = useState<FolderHistoryItem[]>([]);
 
   // 加载历史记录
   const loadFolderHistory = () => {
     try {
       const saved = localStorage.getItem('folderHistory');
       if (saved) {
-        const history = JSON.parse(saved);
-        const validHistory = Array.isArray(history) ? history : [];
-        setFolderHistory(validHistory);
+        const parsed = JSON.parse(saved);
+        let items: FolderHistoryItem[] = [];
+        if (Array.isArray(parsed)) {
+          if (parsed.length > 0 && typeof parsed[0] === 'string') {
+            // 兼容旧格式：string[]
+            items = (parsed as string[]).map((p) => ({ path: p, addedAt: Date.now() }));
+          } else {
+            items = parsed as FolderHistoryItem[];
+          }
+        }
+        setFolderHistory(items);
       } else {
         setFolderHistory([]);
       }
@@ -21,7 +31,7 @@ export const useFolderHistory = () => {
   };
 
   // 保存历史记录
-  const saveFolderHistory = (newPath: string) => {
+  const saveFolderHistory = (item: FolderHistoryItem | string) => {
     try {
       // 从localStorage读取最新的历史记录
       const saved = localStorage.getItem('folderHistory');
@@ -31,18 +41,24 @@ export const useFolderHistory = () => {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            currentHistory = parsed;
+            if (parsed.length > 0 && typeof parsed[0] === 'string') {
+              currentHistory = (parsed as string[]).map((p) => ({ path: p, addedAt: Date.now() }));
+            } else {
+              currentHistory = parsed as FolderHistoryItem[];
+            }
           }
         } catch (e) {
           console.error('解析历史记录失败:', e);
         }
       }
+      const incomingRaw: FolderHistoryItem = typeof item === 'string' ? { path: item, addedAt: Date.now() } : item;
+      const incoming: FolderHistoryItem = { ...incomingRaw, path: normalizePath(incomingRaw.path) };
 
-      // 去重：移除已存在的相同路径
-      const filteredHistory = currentHistory.filter(path => path !== newPath);
+      // 去重：按标准化路径去重
+      const filteredHistory = currentHistory.filter(h => normalizePath(h.path) !== incoming.path);
 
       // 添加到开头（最新的在前面）
-      const newHistory = [newPath, ...filteredHistory];
+      const newHistory: FolderHistoryItem[] = [incoming, ...filteredHistory];
 
       // 限制最多保存3条记录
       const limitedHistory = newHistory.slice(0, 3);
@@ -58,13 +74,9 @@ export const useFolderHistory = () => {
   // 清理历史记录中可能存在的无效路径
   const cleanupInvalidHistory = (validPaths: string[]) => {
     // 简单的路径比较（移除末尾斜杠）
-    const normalizePath = (p: string) => p.replace(/[\\/]+$/, '');
     const validPathsSet = new Set(validPaths.map(p => normalizePath(p)));
 
-    const newHistory = folderHistory.filter(path => {
-      const normalizedHistoryPath = normalizePath(path);
-      return validPathsSet.has(normalizedHistoryPath);
-    });
+    const newHistory = folderHistory.filter(item => validPathsSet.has(normalizePath(item.path)));
 
     if (newHistory.length !== folderHistory.length) {
       localStorage.setItem('folderHistory', JSON.stringify(newHistory));

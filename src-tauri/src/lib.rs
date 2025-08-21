@@ -1,5 +1,6 @@
 pub mod video;
 mod cover;
+mod volume;
 mod folder;
 
 use std::path::PathBuf;
@@ -45,6 +46,33 @@ fn add_root_folder(state: State<AppState>, path: String, name: Option<String>) -
     
     let mut folder_manager = state.folder_manager.lock().map_err(|_| "无法获取文件夹管理器锁".to_string())?;
     let result = folder_manager.add_root_folder(absolute_path, name);
+    Ok(result)
+}
+
+// 根据卷标识与标准化路径生成幂等 rootId（UUID v5）
+fn generate_deterministic_root_id(root_path: &PathBuf) -> Result<String, String> {
+    let norm = root_path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .to_string();
+    let vol = crate::volume::get_or_create_volume_key(root_path)
+        .map_err(|e| format!("无法获取卷标识: {}", e))?;
+    let key = format!("{}::{}", vol, norm);
+    let uuid = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, key.as_bytes());
+    Ok(uuid.to_string())
+}
+
+// Tauri命令：添加根文件夹（幂等ID版本）
+#[tauri::command]
+fn add_root_folder_deterministic(state: State<AppState>, path: String, name: Option<String>) -> Result<String, String> {
+    let absolute_path = if path.starts_with('/') { PathBuf::from(path) } else { std::env::current_dir().unwrap().join(path) };
+    if !absolute_path.exists() { return Err("路径不存在".into()); }
+    if !absolute_path.is_dir() { return Err("路径不是目录".into()); }
+
+    let mut folder_manager = state.folder_manager.lock().map_err(|_| "无法获取文件夹管理器锁".to_string())?;
+    let id = generate_deterministic_root_id(&absolute_path)?;
+    let result = folder_manager.add_root_folder_with_id(id, absolute_path, name);
     Ok(result)
 }
 
@@ -203,6 +231,40 @@ fn get_absolute_path(relative_path: String) -> Result<String, String> {
         .map(|s| s.to_string())
 }
 
+// Tauri命令：获取卷标识（稳定）
+#[tauri::command]
+fn get_volume_key(state: State<AppState>, root_id: String) -> Result<String, String> {
+    let folder_manager = state
+        .folder_manager
+        .lock()
+        .map_err(|_| "无法获取文件夹管理器锁".to_string())?;
+
+    let root = folder_manager
+        .get_root_folder(&root_id)
+        .ok_or("根文件夹不存在".to_string())?;
+
+    crate::volume::get_or_create_volume_key(&root.path)
+}
+
+// Tauri命令：获取相对路径
+#[tauri::command]
+fn to_relative_path(state: State<AppState>, root_id: String, absolute_path: String) -> Result<String, String> {
+    let folder_manager = state
+        .folder_manager
+        .lock()
+        .map_err(|_| "无法获取文件夹管理器锁".to_string())?;
+
+    let root = folder_manager
+        .get_root_folder(&root_id)
+        .ok_or("根文件夹不存在".to_string())?;
+
+    let abs = PathBuf::from(absolute_path);
+    let rel = crate::volume::to_relative_path(&root.path, &abs)?;
+    rel.to_str()
+        .ok_or("路径包含无效字符".to_string())
+        .map(|s| s.to_string())
+}
+
 // Tauri命令：读取图片文件并返回base64数据
 #[tauri::command]
 fn read_image_as_base64(image_path: String) -> Result<String, String> {
@@ -305,6 +367,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             add_root_folder,
+            add_root_folder_deterministic,
             remove_root_folder,
             get_root_folders,
             scan_directory,
@@ -315,6 +378,8 @@ pub fn run() {
             execute_command,
             find_cover_for_video,
             get_absolute_path,
+            get_volume_key,
+            to_relative_path,
             read_image_as_base64,
             rescan_directory,
             open_folder,

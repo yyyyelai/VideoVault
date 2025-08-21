@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { DotPattern } from './components/magicui/dot-pattern';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { MainContent } from './components/MainContent/MainContent';
@@ -6,6 +7,7 @@ import { AddFolderModal } from './components/Modals/AddFolderModal';
 import { PreviewModal } from './components/Modals/PreviewModal';
 import { useRootFolders } from './hooks/useRootFolders';
 import { useFolderHistory } from './hooks/useFolderHistory';
+import type { FolderHistoryItem } from './types';
 import { useDirectoryScan } from './hooks/useDirectoryScan';
 import { useCoverPaths } from './hooks/useCoverPaths';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
@@ -46,6 +48,7 @@ function App() {
     setSelectedFolder,
     clearAllStates,
     getRootDirectory,
+    hydrateFromCache,
   } = useDirectoryScan();
 
   const {
@@ -82,14 +85,93 @@ function App() {
     }
   }, [currentDirectory, loadCoverPaths, loadFolderCoverPaths]);
 
-  // 当根文件夹加载完成后，自动选择第一个并扫描
+  // 当根文件夹加载完成后，自动选择第一个并扫描（若尚未通过缓存 hydrate）
   useEffect(() => {
-    if (rootFolders.length > 0 && !selectedFolder) {
+    if (rootFolders.length > 0 && !selectedFolder && !currentDirectory) {
       const firstFolder = rootFolders[0];
       setSelectedFolder(firstFolder.id);
       scanDirectory(firstFolder.id);
     }
-  }, [rootFolders, selectedFolder, scanDirectory, setSelectedFolder]);
+  }, [rootFolders, selectedFolder, currentDirectory, scanDirectory, setSelectedFolder]);
+
+  // 启动时：使用历史记录的最新项直接从缓存 hydrate（不请求后端）
+  useEffect(() => {
+    if (!selectedFolder && !currentDirectory && folderHistory.length > 0) {
+      const latest = folderHistory[0];
+      if (latest.rootId && latest.volumeKey) {
+        const ok = hydrateFromCache(latest.volumeKey, latest.rootId);
+        if (ok) {
+          // 已通过缓存恢复上次选中
+          return;
+        }
+      }
+    }
+  }, [folderHistory, selectedFolder, currentDirectory, hydrateFromCache]);
+
+  // 启动后：只同步选中与历史 rootId，不自动注册，避免重复项
+  useEffect(() => {
+    const syncSidebarLatest = async () => {
+      if (folderHistory.length === 0) return;
+      const latest = folderHistory[0];
+      const normalizePath = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/');
+      const normalizedLatest = normalizePath(latest.path);
+      const existing = rootFolders.find(f => normalizePath(f.path) === normalizedLatest);
+
+      if (existing) {
+        if (!selectedFolder) {
+          setSelectedFolder(existing.id);
+        }
+        if (latest.rootId !== existing.id) {
+          try {
+            const volumeKey = await invoke<string>('get_volume_key', { rootId: existing.id });
+            saveFolderHistory({ path: latest.path, rootId: existing.id, volumeKey, addedAt: Date.now() });
+          } catch {
+            saveFolderHistory({ path: latest.path, rootId: existing.id, addedAt: Date.now() });
+          }
+        }
+      }
+    };
+
+    // 等待 rootFolders 加载完成再同步
+    if (!rootFoldersLoading) {
+      syncSidebarLatest();
+    }
+  }, [folderHistory, rootFolders, rootFoldersLoading, selectedFolder, setSelectedFolder, saveFolderHistory]);
+
+  // 启动后：若侧边栏缺少历史最新项，则自动注册一次（带幂等保护），以便两侧一致
+  const ensuredFromHistoryRef = useRef(false);
+  useEffect(() => {
+    const ensureRegisterLatest = async () => {
+      if (ensuredFromHistoryRef.current) return;
+      if (rootFoldersLoading) return;
+      if (folderHistory.length === 0) return;
+
+      const latest = folderHistory[0];
+      const normalizePath = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/');
+      const normalizedLatest = normalizePath(latest.path);
+      const existing = rootFolders.find(f => normalizePath(f.path) === normalizedLatest);
+
+      if (!existing) {
+        try {
+          const name = latest.path.split('/').pop() || latest.path.split('\\').pop() || '未命名文件夹';
+          const newId = await addRootFolder(latest.path, name);
+          setSelectedFolder(newId);
+          try {
+            const volumeKey = await invoke<string>('get_volume_key', { rootId: newId });
+            saveFolderHistory({ path: latest.path, rootId: newId, volumeKey, addedAt: Date.now() });
+          } catch {
+            saveFolderHistory({ path: latest.path, rootId: newId, addedAt: Date.now() });
+          }
+        } catch (e) {
+          console.error('自动注册历史最新文件夹失败:', e);
+        }
+      }
+
+      ensuredFromHistoryRef.current = true;
+    };
+
+    ensureRegisterLatest();
+  }, [folderHistory, rootFolders, rootFoldersLoading, addRootFolder, setSelectedFolder, saveFolderHistory]);
 
   // 清理历史记录中可能存在的无效路径
   const handleCleanupInvalidHistory = () => {
@@ -98,13 +180,30 @@ function App() {
   };
 
   // 从历史记录中选择文件夹
-  const selectFromHistory = async (path: string) => {
+  const selectFromHistory = async (item: FolderHistoryItem) => {
     try {
-      // 设置初始路径并显示添加文件夹弹窗
-      setInitialPath(path);
-      setShowAddFolderModal(true);
-      // 清除之前的错误信息
       setDirectoryError(null);
+
+      // 若历史项包含有效 rootId，直接扫描
+      if (item.rootId && rootFolders.some(f => f.id === item.rootId)) {
+        setSelectedFolder(item.rootId);
+        await scanDirectory(item.rootId, false);
+        return;
+      }
+
+      // 回退：按路径匹配现有根目录
+      const normalizePath = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/');
+      const normalizedTarget = normalizePath(item.path);
+      const existing = rootFolders.find(f => normalizePath(f.path) === normalizedTarget);
+      if (existing) {
+        setSelectedFolder(existing.id);
+        await scanDirectory(existing.id, false);
+        return;
+      }
+
+      // 否则打开添加文件夹弹窗并预填路径
+      setInitialPath(item.path);
+      setShowAddFolderModal(true);
     } catch (error) {
       console.error('从历史记录选择文件夹失败:', error);
       setDirectoryError('无法从历史记录选择文件夹');
@@ -138,21 +237,31 @@ function App() {
 
       // 检查是否已存在相同路径的文件夹
       if (isPathExists(path)) {
-        const existingFolder = findFolderById(selectedFolder || '');
-      if (existingFolder) {
-        // 保存到历史记录
-          saveFolderHistory(path);
+        // 按路径查找已存在的根目录
+        const normalizePath = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/');
+        const normalizedTarget = normalizePath(path);
+        const existingFolder = rootFolders.find(f => normalizePath(f.path) === normalizedTarget);
 
-        // 选择现有的文件夹并刷新
-        setSelectedFolder(existingFolder.id);
-        await scanDirectory(existingFolder.id);
+        if (existingFolder) {
+          // 保存到历史记录
+          try {
+            const volumeKey = await invoke<string>('get_volume_key', { rootId: existingFolder.id });
+            const historyItem: FolderHistoryItem = { path, rootId: existingFolder.id, volumeKey, addedAt: Date.now() };
+            saveFolderHistory(historyItem);
+          } catch {
+            saveFolderHistory({ path, rootId: existingFolder.id, addedAt: Date.now() });
+          }
+
+          // 选择现有的文件夹并刷新（带缓存逻辑）
+          setSelectedFolder(existingFolder.id);
+          await scanDirectory(existingFolder.id, false);
 
           // 关闭模态框
-        setShowAddFolderModal(false);
-          setInitialPath(''); // 重置初始路径
+          setShowAddFolderModal(false);
+          setInitialPath('');
 
-        // 显示成功提示信息
-        setSuccessMessage(`文件夹 "${existingFolder.name}" 已存在，已自动刷新`);
+          // 成功提示
+          setSuccessMessage(`文件夹 "${existingFolder.name}" 已存在，已自动刷新`);
         }
         return;
       }
@@ -160,8 +269,14 @@ function App() {
       // 如果不存在，则添加新文件夹
       const folderId = await addRootFolder(path, name);
 
-      // 保存到历史记录
-      saveFolderHistory(path);
+      // 保存到历史记录（写入 rootId/volumeKey）
+      try {
+        const volumeKey = await invoke<string>('get_volume_key', { rootId: folderId });
+        const historyItem: FolderHistoryItem = { path, rootId: folderId, volumeKey, addedAt: Date.now() };
+        saveFolderHistory(historyItem);
+      } catch {
+        saveFolderHistory({ path, rootId: folderId, addedAt: Date.now() });
+      }
 
       // 自动选择新添加的文件夹
       setSelectedFolder(folderId);

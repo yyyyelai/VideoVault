@@ -10,16 +10,88 @@ export const useDirectoryScan = () => {
   const [error, setError] = useState<string | null>(null);
   const [rootDirectoryCache, setRootDirectoryCache] = useState<DirectoryNode | null>(null);
 
-  // 扫描目录
-  const scanDirectory = async (rootId: string) => {
+  // 根据卷标识生成缓存 key
+  const buildStorageKey = (volumeKey: string, rootId: string) => `vv:dirTree:${volumeKey}:${rootId}`;
+
+  // 仅根据缓存直接 hydrate（不请求后端）。成功返回 true。
+  const hydrateFromCache = (volumeKey: string, rootId: string): boolean => {
+    try {
+      const cacheKey = buildStorageKey(volumeKey, rootId);
+      const cachedRaw = localStorage.getItem(cacheKey);
+      if (!cachedRaw) return false;
+      const cached = JSON.parse(cachedRaw) as { data: DirectoryNode; generatedAt: number };
+      if (!cached || !cached.data) return false;
+      setCurrentDirectory(cached.data);
+      setSelectedFolder(rootId);
+      setRootDirectoryCache(cached.data);
+      setBreadcrumb([]);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // 扫描目录（支持 revalidate：默认 true；为 false 时命中缓存则不请求后端）
+  const scanDirectory = async (rootId: string, revalidate: boolean = true) => {
     try {
       setIsLoading(true);
       setError(null);
+      // 先获取卷标识
+      let volumeKey: string | null = null;
+      try {
+        volumeKey = await invoke<string>('get_volume_key', { rootId });
+      } catch {
+        volumeKey = null;
+      }
+
+      // 如果有缓存，先展示缓存（stale-while-revalidate）
+      let cacheHit = false;
+      if (volumeKey) {
+        try {
+          const cacheKey = buildStorageKey(volumeKey, rootId);
+          const cachedRaw = localStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw) as { data: DirectoryNode; generatedAt: number };
+            if (cached && cached.data) {
+              console.debug('[VideoVault] 缓存命中', { cacheKey });
+              setCurrentDirectory(cached.data);
+              setSelectedFolder(rootId);
+              setRootDirectoryCache(cached.data);
+              setBreadcrumb([]);
+              cacheHit = true;
+            }
+          }
+        } catch {
+          // 忽略缓存解析错误
+        }
+      }
+
+      // 若已命中缓存且不需要刷新，直接返回
+      if (cacheHit && !revalidate) {
+        return;
+      }
+
+      // 后台刷新（或无缓存/需要刷新时拉取）
       const directoryTree = await invoke<DirectoryNode>('scan_directory', { rootId });
+
+      // 写入缓存
+      if (volumeKey) {
+        try {
+          const cacheKey = buildStorageKey(volumeKey, rootId);
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({ data: directoryTree, generatedAt: Date.now() })
+          );
+          console.debug('[VideoVault] 缓存写入', { cacheKey });
+        } catch {
+          // 忽略缓存写入错误
+        }
+      }
+
+      // 更新 UI 状态
       setCurrentDirectory(directoryTree);
       setSelectedFolder(rootId);
       setRootDirectoryCache(directoryTree);
-      // 重置面包屑，因为现在在根目录
       setBreadcrumb([]);
     } catch (error) {
       console.error('扫描目录失败:', error);
@@ -40,6 +112,18 @@ export const useDirectoryScan = () => {
         console.log('updatedDirectory', updatedDirectory);
         setCurrentDirectory(updatedDirectory);
         setRootDirectoryCache(updatedDirectory);
+
+        // 更新缓存
+        try {
+          const volumeKey = await invoke<string>('get_volume_key', { rootId: selectedFolder });
+          const cacheKey = buildStorageKey(volumeKey, selectedFolder);
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({ data: updatedDirectory, generatedAt: Date.now() })
+          );
+        } catch {
+          // 忽略缓存失败
+        }
 
         // 重置面包屑到根目录
         setBreadcrumb([]);
@@ -126,5 +210,6 @@ export const useDirectoryScan = () => {
     setSelectedFolder,
     clearAllStates,
     getRootDirectory,
+    hydrateFromCache,
   };
 };

@@ -1,11 +1,12 @@
 import React from 'react';
 import { RefreshCw, X, FolderOpen } from 'lucide-react';
 import { extractFolderName } from '../../utils/formatters';
+import type { FolderHistoryItem } from '../../types';
 import './Sidebar.css';
 
 interface HistorySectionProps {
-  folderHistory: string[];
-  onSelectFromHistory: (path: string) => void;
+  folderHistory: FolderHistoryItem[];
+  onSelectFromHistory: (item: FolderHistoryItem) => void;
   onCleanupInvalidHistory: () => void;
   onClearAllHistory: () => void;
   onShowInfoMessage: (content: string) => void;
@@ -45,15 +46,15 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
       </div>
       {folderHistory.length > 0 ? (
         <div className="history-list">
-          {folderHistory.map((path, index) => {
-            const folderName = extractFolderName(path);
+          {folderHistory.map((item, index) => {
+            const folderName = extractFolderName(item.path);
             return (
               <div
-                key={`${path}-${index}`}
+                key={`${item.path}-${index}`}
                 className="history-item"
-                onClick={() => onSelectFromHistory(path)}
-                title={`点击选择: ${path}`}
-                onMouseEnter={() => onShowInfoMessage(path)}
+                onClick={() => onSelectFromHistory(item)}
+                title={`点击选择: ${item.path}`}
+                onMouseEnter={() => onShowInfoMessage(item.path)}
                 onMouseLeave={() => onHideInfoMessage()}
               >
                 <div className="history-content">

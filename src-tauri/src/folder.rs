@@ -163,6 +163,28 @@ impl FolderManager {
         id
     }
 
+    /// 使用指定ID添加根文件夹（用于生成幂等ID的场景）
+    pub fn add_root_folder_with_id(&mut self, id: String, path: PathBuf, name: Option<String>) -> String {
+        let folder_name = name.unwrap_or_else(|| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Unknown")
+                .to_string()
+        });
+
+        let root_folder = RootFolder {
+            id: id.clone(),
+            path,
+            name: folder_name,
+            enabled: true,
+            max_depth: -1,
+            last_scan: None,
+        };
+
+        self.root_folders.insert(id.clone(), root_folder);
+        id
+    }
+
     /// 移除根文件夹
     pub fn remove_root_folder(&mut self, id: &str) -> bool {
         self.root_folders.remove(id).is_some()
@@ -247,13 +269,7 @@ impl FolderManager {
         // 分离文件和目录
         let (files, subdirs): (Vec<_>, Vec<_>) = entries
             .into_iter()
-            .partition(|entry| {
-                if let Ok(metadata) = entry.metadata() {
-                    metadata.is_file()
-                } else {
-                    false
-                }
-            });
+            .partition(|entry| entry.file_type().map(|t| t.is_file()).unwrap_or(false));
 
         // 并行处理视频文件
         let videos = self.process_video_files_parallel(&files);
@@ -509,8 +525,9 @@ impl FolderManager {
                     match entry {
                         Ok(entry) => {
                             let entry_path = entry.path();
+                            let file_type = entry.file_type();
                             
-                            if entry_path.is_dir() {
+                            if file_type.as_ref().map(|t| t.is_dir()).unwrap_or_else(|_| entry_path.is_dir()) {
                                 // 递归构建子目录
                                 match self.build_tree_recursive(&entry_path, current_depth + 1, max_depth) {
                                     Ok(child_node) => {
@@ -540,7 +557,7 @@ impl FolderManager {
                                         children.push(empty_node);
                                     }
                                 }
-                            } else if entry_path.is_file() {
+                            } else if file_type.as_ref().map(|t| t.is_file()).unwrap_or_else(|_| entry_path.is_file()) {
                                 // 检查是否为视频文件
                                 if let Some(extension) = entry_path.extension() {
                                     let ext_str = extension.to_string_lossy().to_lowercase();

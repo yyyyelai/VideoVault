@@ -51,3 +51,11 @@ export interface DirectoryNode {
 
 // 视图模式类型
 export type ViewMode = 'grid' | 'list';
+
+// 历史记录项（对象化）
+export interface FolderHistoryItem {
+  path: string;
+  rootId?: string;
+  volumeKey?: string;
+  addedAt: number;
+}

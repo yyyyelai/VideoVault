@@ -3,17 +3,17 @@ import { FolderPlus } from 'lucide-react';
 import { RainbowButton } from '../magicui/rainbow-button';
 import { FolderList } from './FolderList';
 import { HistorySection } from './HistorySection';
-import { type RootFolder } from '../../types';
+import { type RootFolder, type FolderHistoryItem } from '../../types';
 import './Sidebar.css';
 
 interface SidebarProps {
   rootFolders: RootFolder[];
   selectedFolder: string | null;
-  folderHistory: string[];
+  folderHistory: FolderHistoryItem[];
   onShowAddFolderModal: () => void;
   onSelectFolder: (folderId: string) => void;
   onRemoveFolder: (folderId: string) => void;
-  onSelectFromHistory: (path: string) => void;
+  onSelectFromHistory: (item: FolderHistoryItem) => void;
   onCleanupInvalidHistory: () => void;
   onClearAllHistory: () => void;
   onShowInfoMessage: (content: string) => void;

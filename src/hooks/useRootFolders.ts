@@ -26,7 +26,8 @@ export const useRootFolders = () => {
   const addRootFolder = async (path: string, name: string): Promise<string> => {
     try {
       setError(null);
-      const folderId = await invoke<string>('add_root_folder', { path, name });
+      // 使用幂等的后端命令，保证同卷+路径生成相同 rootId
+      const folderId = await invoke<string>('add_root_folder_deterministic', { path, name });
       // 不重新加载整个列表，而是直接添加到当前状态
       // 这样可以避免不必要的加载状态
       setRootFolders(prev => [...prev, { id: folderId, path, name, enabled: true, max_depth: 0, last_scan: null }]);
