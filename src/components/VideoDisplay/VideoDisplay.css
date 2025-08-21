@@ -33,8 +33,8 @@
 .video-cover {
   position: relative;
   width: 100%;
-  height: 200px;
   overflow: hidden;
+  aspect-ratio: 800 / 538;
 }
 
 .video-cover img {

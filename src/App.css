@@ -481,9 +481,9 @@
   box-shadow: 0 10px 15px -3px hsl(var(--foreground) / 0.1);
 }
 
-.video-cover {
+/* .video-cover {
   position: relative;
-  aspect-ratio: 500 / 360;
+  aspect-ratio: 800 / 538;
   overflow: hidden;
 }
 
@@ -492,7 +492,7 @@
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
-}
+} */
 
 .video-card:hover .video-cover img {
   transform: scale(1.05);
@@ -1070,7 +1070,7 @@
 
 .folder-cover {
   width: 100%;
-  aspect-ratio: 500 / 360;
+  aspect-ratio: 800 / 538;
   overflow: hidden;
   border-radius: 0.375rem;
   margin-bottom: 0.75rem;
