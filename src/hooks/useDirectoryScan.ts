@@ -32,7 +32,7 @@ export const useDirectoryScan = () => {
   };
 
   // 扫描目录（支持 revalidate：默认 true；为 false 时命中缓存则不请求后端）
-  const scanDirectory = async (rootId: string, revalidate: boolean = true) => {
+  const scanDirectory = async (rootId: string, revalidate: boolean = true, setSelected: boolean = true) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -55,7 +55,9 @@ export const useDirectoryScan = () => {
             if (cached && cached.data) {
               console.debug('[VideoVault] 缓存命中', { cacheKey });
               setCurrentDirectory(cached.data);
-              setSelectedFolder(rootId);
+              if (setSelected) {
+                setSelectedFolder(rootId);
+              }
               setRootDirectoryCache(cached.data);
               setBreadcrumb([]);
               cacheHit = true;
@@ -90,7 +92,9 @@ export const useDirectoryScan = () => {
 
       // 更新 UI 状态
       setCurrentDirectory(directoryTree);
-      setSelectedFolder(rootId);
+      if (setSelected) {
+        setSelectedFolder(rootId);
+      }
       setRootDirectoryCache(directoryTree);
       setBreadcrumb([]);
     } catch (error) {

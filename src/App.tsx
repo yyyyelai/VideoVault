@@ -86,26 +86,39 @@ function App() {
   }, [currentDirectory, loadCoverPaths, loadFolderCoverPaths]);
 
   // 当根文件夹加载完成后，自动选择第一个并扫描（若尚未通过缓存 hydrate）
+  const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
+    // 只在第一次加载时自动选择，避免在删除文件夹后重新选择
+    if (hasAutoSelectedRef.current) return;
+    
     if (rootFolders.length > 0 && !selectedFolder && !currentDirectory) {
       const firstFolder = rootFolders[0];
       setSelectedFolder(firstFolder.id);
       scanDirectory(firstFolder.id);
+      hasAutoSelectedRef.current = true;
     }
   }, [rootFolders, selectedFolder, currentDirectory, scanDirectory, setSelectedFolder]);
 
   // 启动时：使用历史记录的最新项直接从缓存 hydrate（不请求后端）
+  const hasHydratedRef = useRef(false);
   useEffect(() => {
+    // 只在第一次启动时执行，避免在删除文件夹后重新hydrate
+    if (hasHydratedRef.current) return;
+    
     if (!selectedFolder && !currentDirectory && folderHistory.length > 0) {
       const latest = folderHistory[0];
       if (latest.rootId && latest.volumeKey) {
         const ok = hydrateFromCache(latest.volumeKey, latest.rootId);
         if (ok) {
           // 已通过缓存恢复上次选中
+          hasHydratedRef.current = true;
           return;
         }
       }
     }
+    
+    // 如果没有成功hydrate，也标记为已尝试过
+    hasHydratedRef.current = true;
   }, [folderHistory, selectedFolder, currentDirectory, hydrateFromCache]);
 
   // 启动后：只同步选中与历史 rootId，不自动注册，避免重复项
@@ -297,11 +310,28 @@ function App() {
   const handleRemoveFolder = async (folderId: string) => {
     try {
       await removeRootFolder(folderId);
-
       // 如果删除的是当前选中的文件夹，清空所有相关状态
       if (selectedFolder === folderId) {
-        clearAllStates(); // 清理所有目录相关状态
-        clearAllCovers(); // 清理所有封面状态
+        // 在清空状态之前，先确定下一个要选择的文件夹
+        let nextFolderId: string | null = null;
+        if (rootFolders.length > 1) {
+          const remainingFolders = rootFolders.filter(f => f.id !== folderId);
+          if (remainingFolders.length > 0) {
+            nextFolderId = remainingFolders[0].id;
+          }
+        }
+        
+        // 清空所有状态
+        clearAllStates();
+        clearAllCovers();
+        
+        // 如果有其他文件夹，直接设置新的选中状态，不触发useEffect
+        if (nextFolderId) {
+          // 直接设置状态，避免触发useEffect的自动选择逻辑
+          setSelectedFolder(nextFolderId);
+          // 直接调用scanDirectory，传入false避免设置selectedFolder，防止循环调用
+          scanDirectory(nextFolderId, true, false);
+        }
       }
     } catch (error) {
       console.error('删除根文件夹失败:', error);
@@ -347,7 +377,7 @@ function App() {
       </div>
     );
   }
-
+  console.log('currentDirectory', currentDirectory);
   return (
     <div className="app-container">
       {/* Dot Pattern 背景 */}
