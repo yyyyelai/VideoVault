@@ -284,9 +284,12 @@ impl FolderManager {
 
         // 确定当前目录的封面路径
         let cover_path = if !videos.is_empty() {
-            crate::cover::CoverManager::new().find_cover_for_video(&videos[0].path)
+            // 如果当前目录有视频，使用第一个视频的封面
+            let video_path = PathBuf::from(&videos[0].path);
+            crate::cover::CoverManager::new().find_cover_for_video(&video_path)
                 .map(|cover_info| cover_info.path.clone())
         } else if !children.is_empty() {
+            // 否则递归查找子目录中的第一个封面
             self.find_first_cover_in_children(&children)
         } else {
             None
@@ -710,7 +713,8 @@ impl FolderManager {
         // 确定当前目录的封面路径
         let cover_path = if !videos.is_empty() {
             // 如果当前目录有视频，使用第一个视频的封面
-            crate::cover::CoverManager::new().find_cover_for_video(&videos[0].path)
+            let video_path = PathBuf::from(&videos[0].path);
+            crate::cover::CoverManager::new().find_cover_for_video(&video_path)
                 .map(|cover_info| cover_info.path.clone())
         } else if !children.is_empty() {
             // 否则递归查找子目录中的第一个封面

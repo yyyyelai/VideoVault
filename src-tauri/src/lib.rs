@@ -352,6 +352,55 @@ async fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// Tauri命令：获取指定目录视频文件的元数据
+#[tauri::command]
+fn get_video_metadata_for_directory(
+    state: State<AppState>, 
+    root_id: String, 
+    directory_path: String
+) -> Result<Vec<(String, crate::video::VideoMetadata)>, String> {
+    println!("获取目录视频元数据: root_id={}, directory_path={}", root_id, directory_path);
+    
+    let folder_manager = state.folder_manager.lock().map_err(|_| "无法获取文件夹管理器锁".to_string())?;
+    let root_folder = folder_manager.get_root_folder(&root_id)
+        .ok_or("根文件夹不存在")?;
+    
+    let target_path = PathBuf::from(&directory_path);
+    
+    // 验证路径是否在根目录下
+    if !target_path.starts_with(&root_folder.path) {
+        return Err("目录路径不在根目录范围内".to_string());
+    }
+    
+    // 扫描指定目录
+    let entries = std::fs::read_dir(&target_path)
+        .map_err(|e| format!("读取目录失败: {}", e))?;
+    
+    let mut results = Vec::new();
+    let video_extensions = ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm"];
+    
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(extension) = path.extension() {
+                    let ext_str = extension.to_string_lossy().to_lowercase();
+                    if video_extensions.contains(&ext_str.as_str()) {
+                        // 使用FFMPEG获取视频元数据
+                        if let Some(metadata) = crate::video::VideoProcessor::new().load_video_metadata(&path) {
+                            let path_str = path.to_string_lossy().to_string();
+                            results.push((path_str, metadata));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    println!("找到 {} 个视频文件，成功获取元数据", results.len());
+    Ok(results)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -383,6 +432,7 @@ pub fn run() {
             read_image_as_base64,
             rescan_directory,
             open_folder,
+            get_video_metadata_for_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

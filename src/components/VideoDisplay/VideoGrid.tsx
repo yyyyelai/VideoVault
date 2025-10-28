@@ -9,6 +9,7 @@ interface VideoGridProps {
   viewMode: 'grid' | 'list';
   onPlay: (videoPath: string) => void;
   onPreview: (video: VideoInfo) => void;
+  isLoadingMetadata?: boolean;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
@@ -17,6 +18,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   viewMode,
   onPlay,
   onPreview,
+  isLoadingMetadata = false,
 }) => {
   if (videos.length === 0) {
     return null;
@@ -34,6 +36,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             viewMode={viewMode}
             onPlay={onPlay}
             onPreview={onPreview}
+            isLoadingMetadata={isLoadingMetadata}
           />
         );
       })}

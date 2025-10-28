@@ -255,3 +255,31 @@
 .play-btn:hover {
   color: #22c55e;
 }
+
+/* 视频元数据加载状态 */
+.video-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.video-loading .animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 列表模式下的加载状态 */
+.folder-cover-count .animate-spin {
+  animation: spin 1s linear infinite;
+}

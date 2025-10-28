@@ -8,29 +8,19 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoInfo {
     /// 文件路径
-    pub path: PathBuf,
+    pub path: String,
     /// 文件名
     pub name: String,
     /// 文件大小（字节）
     pub size: u64,
-    /// 视频时长
-    pub duration: Option<Duration>,
-    /// 视频分辨率
-    pub resolution: Option<(u32, u32)>,
-    /// 视频编码格式
-    pub codec: Option<String>,
-    /// 音频编码格式
-    pub audio_codec: Option<String>,
     /// 文件创建时间
     pub created_time: Option<std::time::SystemTime>,
     /// 文件修改时间
     pub modified_time: Option<std::time::SystemTime>,
-    /// 容器格式
+    /// 容器格式（从文件扩展名获取）
     pub container_format: Option<String>,
-    /// 帧率
-    pub frame_rate: Option<f64>,
-    /// 比特率
-    pub bit_rate: Option<u32>,
+    /// 完整的视频元数据（按需加载）
+    pub metadata: Option<VideoMetadata>,
 }
 
 /// 视频文件处理器
@@ -90,11 +80,6 @@ impl VideoProcessor {
         
         let mut metadata = VideoMetadata::default();
         
-        // 从文件扩展名获取容器格式
-        if let Some(ext) = path.extension() {
-            metadata.container_format = ext.to_string_lossy().to_uppercase();
-        }
-        
         // 解析格式信息
         if let Some(format_info) = json.get("format") {
             if let Some(duration_str) = format_info.get("duration") {
@@ -121,7 +106,7 @@ impl VideoProcessor {
                         
                         // 视频编码格式
                         if let Some(codec_name) = stream.get("codec_name").and_then(|c| c.as_str()) {
-                            metadata.video_codec = Some(codec_name.to_string());
+                            metadata.codec = Some(codec_name.to_string());
                         }
                         
                         // 分辨率
@@ -129,8 +114,7 @@ impl VideoProcessor {
                             stream.get("width").and_then(|w| w.as_u64()),
                             stream.get("height").and_then(|h| h.as_u64())
                         ) {
-                            metadata.width = Some(width as u32);
-                            metadata.height = Some(height as u32);
+                            metadata.resolution = Some((width as u32, height as u32));
                         }
                         
                         // 帧率
@@ -190,7 +174,7 @@ impl VideoProcessor {
         None
     }
 
-    /// 从文件路径创建视频信息
+    /// 从文件路径创建视频信息（基础信息，不包含FFMPEG元数据）
     pub fn create_video_info(&self, path: PathBuf) -> Result<VideoInfo, Box<dyn std::error::Error>> {
         let metadata = std::fs::metadata(&path)?;
         let name = path.file_name()
@@ -198,44 +182,46 @@ impl VideoProcessor {
             .unwrap_or("Unknown")
             .to_string();
 
-        // 使用 ffprobe 解析视频元数据
-        let video_metadata = self.get_video_metadata_ffprobe(&path)
-            .unwrap_or_default();
+        // 从文件扩展名获取容器格式
+        let container_format = path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_lowercase());
 
         Ok(VideoInfo {
-            path,
+            path: path.to_string_lossy().into_owned(),
             name,
             size: metadata.len(),
-            duration: video_metadata.duration,
-            resolution: if let (Some(w), Some(h)) = (video_metadata.width, video_metadata.height) {
-                Some((w, h))
-            } else {
-                None
-            },
-            codec: video_metadata.video_codec,
-            audio_codec: video_metadata.audio_codec,
             created_time: metadata.created().ok(),
             modified_time: metadata.modified().ok(),
-            container_format: Some(video_metadata.container_format),
-            frame_rate: video_metadata.frame_rate,
-            bit_rate: video_metadata.bit_rate,
+            container_format,
+            metadata: None, // 元数据按需加载
         })
     }
 
+    /// 为视频文件加载元数据（调用FFMPEG）
+    pub fn load_video_metadata(&self, path: &PathBuf) -> Option<VideoMetadata> {
+        self.get_video_metadata_ffprobe(path)
+    }
 }
 
 /// 视频元数据结构
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VideoMetadata {
+    /// 视频时长
     pub duration: Option<Duration>,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub video_codec: Option<String>,
+    /// 视频分辨率
+    pub resolution: Option<(u32, u32)>,
+    /// 视频编码格式
+    pub codec: Option<String>,
+    /// 音频编码格式
     pub audio_codec: Option<String>,
-    pub container_format: String,
+    /// 帧率
     pub frame_rate: Option<f64>,
+    /// 比特率
     pub bit_rate: Option<u32>,
+    /// 是否有视频流
     pub has_video: bool,
+    /// 是否有音频流
     pub has_audio: bool,
 }
 

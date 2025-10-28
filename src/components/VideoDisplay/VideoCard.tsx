@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Eye } from 'lucide-react';
+import { Play, Eye, Loader2 } from 'lucide-react';
 import { ShimmerButton } from '../magicui/shimmer-button';
 import { type VideoInfo } from '../../types';
 import { formatFileSize, formatDuration } from '../../utils/formatters';
@@ -11,6 +11,7 @@ interface VideoCardProps {
   viewMode: 'grid' | 'list';
   onPlay: (videoPath: string) => void;
   onPreview: (video: VideoInfo) => void;
+  isLoadingMetadata?: boolean;
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({
@@ -19,7 +20,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   viewMode,
   onPlay,
   onPreview,
+  isLoadingMetadata = false,
 }) => {
+  // 从metadata字段获取视频元数据
+  const metadata = video.metadata;
+  const hasMetadata = metadata !== null && metadata !== undefined;
+
   if (viewMode === 'grid') {
     return (
       <div className="video-card">
@@ -64,12 +70,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           </h4>
           <div className="video-meta">
             <span className="video-size">{formatFileSize(video.size)}</span>
-            {video.resolution && (
-              <span className="video-resolution">{video.resolution[0]}x{video.resolution[1]}</span>
+            {hasMetadata && metadata.resolution && (
+              <span className="video-resolution">{metadata.resolution[0]}x{metadata.resolution[1]}</span>
             )}
-            {video.duration && (
-              <span className="video-duration" title={`${video.duration.secs}秒 ${video.duration.nanos}纳秒`}>
-                {formatDuration(video.duration)}
+            {hasMetadata && metadata.duration && (
+              <span className="video-duration" title={`${metadata.duration.secs}秒 ${metadata.duration.nanos}纳秒`}>
+                {formatDuration(metadata.duration)}
               </span>
             )}
             {video.container_format && (
@@ -78,6 +84,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             {video?.modified_time?.secs_since_epoch && (
               <span className="video-size">
                 {new Date(video.modified_time.secs_since_epoch * 1000).toLocaleString()}
+              </span>
+            )}
+            {!hasMetadata && isLoadingMetadata && (
+              <span className="video-loading">
+                <Loader2 size={12} className="animate-spin" />
+                加载中...
               </span>
             )}
           </div>
@@ -101,12 +113,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           </div>
           <div className="folder-stats">
             <span className="folder-video-count">{formatFileSize(video.size)}</span>
-            {video.resolution && (
-              <span className="folder-cover-count">{video.resolution[0]}x{video.resolution[1]}</span>
+            {hasMetadata && metadata.resolution && (
+              <span className="folder-cover-count">{metadata.resolution[0]}x{metadata.resolution[1]}</span>
             )}
-            {video.duration && (
-              <span className="folder-cover-count" title={`${video.duration.secs}秒 ${video.duration.nanos}纳秒`}>
-                {formatDuration(video.duration)}
+            {hasMetadata && metadata.duration && (
+              <span className="folder-cover-count" title={`${metadata.duration.secs}秒 ${metadata.duration.nanos}纳秒`}>
+                {formatDuration(metadata.duration)}
               </span>
             )}
             {video.container_format && (
@@ -116,6 +128,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             {video?.modified_time?.secs_since_epoch && (
               <span className="folder-cover-count">
                 {new Date(video.modified_time.secs_since_epoch * 1000).toLocaleString()}
+              </span>
+            )}
+            {!hasMetadata && isLoadingMetadata && (
+              <span className="folder-cover-count">
+                <Loader2 size={12} className="animate-spin" />
+                加载中...
               </span>
             )}
           </div>

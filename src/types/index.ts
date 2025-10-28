@@ -8,23 +8,30 @@ export interface RootFolder {
   last_scan: string | null;
 }
 
+// 视频元数据接口
+export interface VideoMetadata {
+  duration: Duration | null;
+  resolution: [number, number] | null;
+  codec: string | null;
+  audio_codec: string | null;
+  frame_rate: number | null;
+  bit_rate: number | null;
+  has_video: boolean;
+  has_audio: boolean;
+}
+
 // 视频信息接口
 export interface VideoInfo {
   path: string;
   name: string;
   size: number;
-  duration: Duration | null;
-  resolution: [number, number] | null;
-  codec: string | null;
-  audio_codec: string | null;
   created_time: string | null;
   modified_time: {
     secs_since_epoch: number;
     nanos_since_epoch: number;
   } | null;
   container_format?: string | null;
-  frame_rate?: number | null;
-  bit_rate?: number | null;
+  metadata?: VideoMetadata | null;
 }
 
 // 时长接口

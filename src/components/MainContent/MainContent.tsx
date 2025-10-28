@@ -26,6 +26,7 @@ interface MainContentProps {
   currentDirectory: DirectoryNode | null;
   breadcrumb: DirectoryNode[];
   isLoading: boolean;
+  isLoadingMetadata?: boolean;
   coverPaths: Map<string, string>;
   folderCoverPaths: Map<string, string>;
   onGoToRoot: () => void;
@@ -42,6 +43,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   currentDirectory,
   breadcrumb,
   isLoading,
+  isLoadingMetadata = false,
   coverPaths,
   folderCoverPaths,
   onGoToRoot,
@@ -203,6 +205,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               viewMode={viewMode}
               onPlay={onPlayVideo}
               onPreview={onPreviewVideo}
+              isLoadingMetadata={isLoadingMetadata}
             />
           </>
         )}

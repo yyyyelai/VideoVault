@@ -38,6 +38,7 @@ function App() {
     selectedFolder,
     breadcrumb,
     isLoading: directoryLoading,
+    isLoadingMetadata,
     error: directoryError,
     setError: setDirectoryError,
     scanDirectory,
@@ -77,13 +78,56 @@ function App() {
   const isLoading = rootFoldersLoading && rootFolders.length === 0;
   const error = rootFoldersError || directoryError;
 
+  // 跟踪上一次的目录路径，避免重复加载封面
+  const lastDirectoryPathRef = useRef<string>('');
+
+  // 调试：监听currentDirectory变化
+  useEffect(() => {
+    if (currentDirectory) {
+      console.debug('[App] currentDirectory发生变化', {
+        path: currentDirectory.path,
+        videoCount: currentDirectory.videos.length,
+        videosWithMetadata: currentDirectory.videos.filter(v => v.metadata).length,
+        stack: new Error().stack // 获取调用栈
+      });
+    }
+  }, [currentDirectory]);
+
   // 当视频列表更新时，加载封面路径
   useEffect(() => {
     if (currentDirectory) {
-      loadCoverPaths(currentDirectory);
-      loadFolderCoverPaths(currentDirectory);
+      const currentPath = currentDirectory.path;
+      const hasVideos = currentDirectory.videos.length > 0;
+      const hasChildren = currentDirectory.children.length > 0;
+      
+      console.debug('[App] 封面加载useEffect触发', {
+        currentPath,
+        hasVideos,
+        hasChildren,
+        lastPath: lastDirectoryPathRef.current,
+        willReload: (hasVideos || hasChildren) && currentPath !== lastDirectoryPathRef.current
+      });
+      
+      // 只在目录路径真正改变且有内容时才重新加载封面
+      if ((hasVideos || hasChildren) && currentPath !== lastDirectoryPathRef.current) {
+        console.debug('[App] 目录路径变化，重新加载封面', { 
+          from: lastDirectoryPathRef.current, 
+          to: currentPath,
+          hasVideos,
+          hasChildren
+        });
+        lastDirectoryPathRef.current = currentPath;
+        loadCoverPaths(currentDirectory);
+        loadFolderCoverPaths(currentDirectory);
+      } else if (hasVideos || hasChildren) {
+        console.debug('[App] 目录路径未变化，跳过封面加载', { 
+          currentPath, 
+          hasVideos,
+          hasChildren
+        });
+      }
     }
-  }, [currentDirectory, loadCoverPaths, loadFolderCoverPaths]);
+  }, [currentDirectory?.path, currentDirectory?.videos.length, currentDirectory?.children.length, loadCoverPaths, loadFolderCoverPaths]);
 
   // 当根文件夹加载完成后，自动选择第一个并扫描（若尚未通过缓存 hydrate）
   const hasAutoSelectedRef = useRef(false);
@@ -346,8 +390,22 @@ function App() {
 
   // 返回根目录处理（优化版本，避免重新扫描）
   const handleGoToRoot = () => {
+    console.debug('[App] handleGoToRoot被调用');
+    
+    // 尝试获取最新的根目录数据
     const rootDirectory = getRootDirectory();
-    goToRoot(rootDirectory || undefined);
+    
+    if (rootDirectory) {
+      console.debug('[App] 找到根目录数据，直接使用', {
+        path: rootDirectory.path,
+        videoCount: rootDirectory.videos.length,
+        childrenCount: rootDirectory.children.length
+      });
+      goToRoot(rootDirectory);
+    } else {
+      console.debug('[App] 未找到根目录数据，重新扫描');
+      goToRoot(); // 不传参数，触发重新扫描
+    }
   };
 
   // 重新扫描当前文件夹
@@ -415,6 +473,7 @@ function App() {
           currentDirectory={currentDirectory}
           breadcrumb={breadcrumb}
           isLoading={directoryLoading}
+          isLoadingMetadata={isLoadingMetadata}
           coverPaths={coverPaths}
           folderCoverPaths={folderCoverPaths}
           onGoToRoot={handleGoToRoot}
