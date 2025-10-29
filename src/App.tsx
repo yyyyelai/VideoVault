@@ -58,6 +58,7 @@ function App() {
     loadFolderCoverPaths,
     refreshCovers,
     clearAllCovers,
+    invalidateCache,
   } = useCoverPaths();
 
   const { playVideo } = useVideoPlayer();
@@ -450,6 +451,7 @@ function App() {
           onNavigateToBreadcrumb={navigateToBreadcrumb}
           onNavigateToDirectory={navigateToDirectory}
           onRescanCurrentFolder={handleRescanCurrentFolder}
+          onInvalidateCache={invalidateCache}
           onPlayVideo={playVideo}
           onPreviewVideo={previewVideo}
         />

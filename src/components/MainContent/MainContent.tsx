@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../shadcn/select';
+import { useCustomFolderCovers } from '../../hooks/useCustomFolderCovers';
+import { invoke } from '@tauri-apps/api/core';
 
 interface MainContentProps {
   selectedFolder: string | null;
@@ -32,6 +34,7 @@ interface MainContentProps {
   onNavigateToBreadcrumb: (index: number) => void;
   onNavigateToDirectory: (directory: DirectoryNode) => void;
   onRescanCurrentFolder: () => void;
+  onInvalidateCache: () => void;
   onPlayVideo: (videoPath: string) => void;
   onPreviewVideo: (video: VideoInfo, videoList: VideoInfo[]) => void;
 }
@@ -48,6 +51,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   onNavigateToBreadcrumb,
   onNavigateToDirectory,
   onRescanCurrentFolder,
+  onInvalidateCache,
   onPlayVideo,
   onPreviewVideo,
 }) => {
@@ -55,6 +59,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   const { openFolder } = useVideoPlayer();
   const [sortKeyList, setSortKeyList] = useState<string[]>(['name']);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const { setCustomCover } = useCustomFolderCovers();
   // 打开当前文件夹
   const handleOpenCurrentFolder = async () => {
     if (currentDirectory) {
@@ -63,6 +68,33 @@ export const MainContent: React.FC<MainContentProps> = ({
       } catch (error) {
         console.error('无法打开文件夹:', error);
       }
+    }
+  };
+
+  // 设置视频封面为文件夹封面
+  const handleSetAsCover = async (videoPath: string, folderPath: string) => {
+    try {
+      // 查找该视频的封面路径
+      const coverPath = await invoke<string>('find_cover_for_video', { videoPath });
+      if (coverPath) {
+        // 保存到localStorage
+        setCustomCover(folderPath, coverPath);
+        console.log(`✅ 已设置文件夹封面: ${folderPath} -> ${coverPath}`);
+        
+        // 只清除缓存标记，不清除已加载的封面数据（避免页面闪烁）
+        onInvalidateCache();
+        
+        console.log('✅ 封面设置成功，下次进入目录将显示新封面');
+        
+        // TODO: 可以添加一个toast提示
+        // showSuccessToast('封面设置成功');
+      } else {
+        console.error('❌ 未找到视频封面');
+        alert('未找到该视频的封面文件');
+      }
+    } catch (error) {
+      console.error('设置封面失败:', error);
+      alert('设置封面失败: ' + error);
     }
   };
 
@@ -201,8 +233,10 @@ export const MainContent: React.FC<MainContentProps> = ({
               videos={filterVideosAndFolders(currentDirectory.videos)}
               coverPaths={coverPaths}
               viewMode={viewMode}
+              currentFolderPath={currentDirectory.path}
               onPlay={onPlayVideo}
               onPreview={(video) => onPreviewVideo(video, filterVideosAndFolders(currentDirectory.videos))}
+              onSetAsCover={handleSetAsCover}
             />
           </>
         )}

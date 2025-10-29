@@ -7,16 +7,20 @@ interface VideoGridProps {
   videos: VideoInfo[];
   coverPaths: Map<string, string>;
   viewMode: 'grid' | 'list';
+  currentFolderPath?: string;
   onPlay: (videoPath: string) => void;
   onPreview: (video: VideoInfo) => void;
+  onSetAsCover?: (videoPath: string, folderPath: string) => void;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
   videos,
   coverPaths,
   viewMode,
+  currentFolderPath,
   onPlay,
   onPreview,
+  onSetAsCover,
 }) => {
   if (videos.length === 0) {
     return null;
@@ -32,8 +36,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             video={video}
             coverPath={coverPath}
             viewMode={viewMode}
+            currentFolderPath={currentFolderPath}
             onPlay={onPlay}
             onPreview={onPreview}
+            onSetAsCover={onSetAsCover}
           />
         );
       })}

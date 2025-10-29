@@ -303,6 +303,33 @@ fn read_image_as_base64(image_path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime_type, base64_data))
 }
 
+// Tauri命令：检查文件是否存在
+#[tauri::command]
+fn check_file_exists(path: String) -> Result<bool, String> {
+    use std::path::PathBuf;
+    
+    // 将路径转换为 PathBuf 以便规范化
+    let file_path = PathBuf::from(&path);
+    
+    // 尝试规范化路径（解析 .. 和 . 等符号）
+    let canonical_path = match file_path.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            // 如果规范化失败（比如文件不存在），直接检查原始路径
+            println!("[check_file_exists] 路径规范化失败: {}, 错误: {}", path, e);
+            return Ok(false);
+        }
+    };
+    
+    // 检查是否为文件
+    let is_file = canonical_path.is_file();
+    
+    println!("[check_file_exists] 路径: {} -> 规范化: {} -> 是文件: {}", 
+             path, canonical_path.display(), is_file);
+    
+    Ok(is_file)
+}
+
 #[tauri::command]
 async fn rescan_directory(state: tauri::State<'_, AppState>, root_id: String) -> Result<(), String> {
     let mut folder_manager = state.folder_manager.lock()
@@ -381,6 +408,7 @@ pub fn run() {
             get_volume_key,
             to_relative_path,
             read_image_as_base64,
+            check_file_exists,
             rescan_directory,
             open_folder,
         ])

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Play, Eye } from 'lucide-react';
-import { ShimmerButton } from '../magicui/shimmer-button';
+import { Play, Eye, Image } from 'lucide-react';
 import { type VideoInfo } from '../../types';
 import { formatFileSize, formatDuration } from '../../utils/formatters';
 import './VideoDisplay.css';
@@ -9,16 +8,20 @@ interface VideoCardProps {
   video: VideoInfo;
   coverPath: string;
   viewMode: 'grid' | 'list';
+  currentFolderPath?: string;
   onPlay: (videoPath: string) => void;
   onPreview: (video: VideoInfo) => void;
+  onSetAsCover?: (videoPath: string, folderPath: string) => void;
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({
   video,
   coverPath,
   viewMode,
+  currentFolderPath,
   onPlay,
   onPreview,
+  onSetAsCover,
 }) => {
   if (viewMode === 'grid') {
     return (
@@ -33,28 +36,33 @@ export const VideoCard: React.FC<VideoCardProps> = ({
               target.src = '/placeholder-cover.jpg';
             }}
           />
-          <div className="video-overlay">
-            <div className="video-actions">
-              <ShimmerButton
-                onClick={() => onPlay(video.path)}
-                className="h-10 px-4"
-                shimmerColor="#fbbf24"
-                background="rgba(0, 0, 0, 0.8)"
+          <div className="video-button-group">
+            <button
+              className="video-action-btn play-action-btn"
+              onClick={() => onPlay(video.path)}
+              title="播放视频"
+            >
+              <Play size={16} />
+              <span>播放</span>
+            </button>
+            <button
+              className="video-action-btn preview-action-btn"
+              onClick={() => onPreview(video)}
+              title="预览视频"
+            >
+              <Eye size={16} />
+              <span>预览</span>
+            </button>
+            {onSetAsCover && currentFolderPath && (
+              <button
+                className="video-action-btn set-cover-action-btn"
+                onClick={() => onSetAsCover(video.path, currentFolderPath)}
+                title="将此视频的封面设为文件夹封面"
               >
-                <Play size={20} />
-                播放
-              </ShimmerButton>
-              <ShimmerButton
-                onClick={() => onPreview(video)}
-                className="h-10 px-4"
-                shimmerColor="#ffffff"
-                background="rgba(255, 255, 255, 0.15)"
-                borderRadius="100px"
-              >
-                <Eye size={20} />
-                预览
-              </ShimmerButton>
-            </div>
+                <Image size={16} />
+                <span>设为封面</span>
+              </button>
+            )}
           </div>
         </div>
 
