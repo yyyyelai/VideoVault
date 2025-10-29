@@ -156,11 +156,23 @@
   border: none;
   padding: 1rem 1.5rem;
   border-radius: 0.75rem 0.75rem 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
 .preview-title {
   color: white;
   font-size: 1rem;
+  flex: 1;
+  margin: 0;
+}
+
+.preview-counter {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 .preview-close {
@@ -178,6 +190,7 @@
   background: rgba(0, 0, 0, 0.8);
   border-radius: 0 0 0.75rem 0.75rem;
   padding: 1rem;
+  position: relative;
 }
 
 .preview-image {
@@ -185,4 +198,42 @@
   max-height: 70vh;
   border-radius: 0.5rem;
   object-fit: contain;
+}
+
+/* 预览导航按钮 */
+.preview-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.preview-nav-btn:hover {
+  background: white;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.preview-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.preview-nav-left {
+  left: 1rem;
+}
+
+.preview-nav-right {
+  right: 1rem;
 }

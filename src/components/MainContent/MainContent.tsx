@@ -33,7 +33,7 @@ interface MainContentProps {
   onNavigateToDirectory: (directory: DirectoryNode) => void;
   onRescanCurrentFolder: () => void;
   onPlayVideo: (videoPath: string) => void;
-  onPreviewVideo: (video: VideoInfo) => void;
+  onPreviewVideo: (video: VideoInfo, videoList: VideoInfo[]) => void;
 }
 
 export const MainContent: React.FC<MainContentProps> = ({
@@ -202,7 +202,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               coverPaths={coverPaths}
               viewMode={viewMode}
               onPlay={onPlayVideo}
-              onPreview={onPreviewVideo}
+              onPreview={(video) => onPreviewVideo(video, filterVideosAndFolders(currentDirectory.videos))}
             />
           </>
         )}

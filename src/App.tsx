@@ -69,6 +69,8 @@ function App() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string>('');
   const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [previewVideoList, setPreviewVideoList] = useState<VideoInfo[]>([]);
+  const [previewCurrentIndex, setPreviewCurrentIndex] = useState<number>(0);
   const [showInfoToast, setShowInfoToast] = useState(false);
   const [infoToastContent, setInfoToastContent] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -235,11 +237,38 @@ function App() {
   };
 
   // 预览视频
-  const previewVideo = (video: VideoInfo) => {
+  const previewVideo = (video: VideoInfo, videoList: VideoInfo[]) => {
+    const index = videoList.findIndex(v => v.path === video.path);
+    setPreviewVideoList(videoList);
+    setPreviewCurrentIndex(index !== -1 ? index : 0);
     const coverPath = coverPaths.get(video.path) || '/placeholder-cover.jpg';
     setPreviewImage(coverPath);
     setPreviewTitle(video.name);
     setShowPreviewModal(true);
+  };
+
+  // 切换到上一个视频
+  const handlePreviewPrevious = () => {
+    if (previewCurrentIndex > 0) {
+      const newIndex = previewCurrentIndex - 1;
+      const video = previewVideoList[newIndex];
+      setPreviewCurrentIndex(newIndex);
+      const coverPath = coverPaths.get(video.path) || '/placeholder-cover.jpg';
+      setPreviewImage(coverPath);
+      setPreviewTitle(video.name);
+    }
+  };
+
+  // 切换到下一个视频
+  const handlePreviewNext = () => {
+    if (previewCurrentIndex < previewVideoList.length - 1) {
+      const newIndex = previewCurrentIndex + 1;
+      const video = previewVideoList[newIndex];
+      setPreviewCurrentIndex(newIndex);
+      const coverPath = coverPaths.get(video.path) || '/placeholder-cover.jpg';
+      setPreviewImage(coverPath);
+      setPreviewTitle(video.name);
+    }
   };
 
   // 添加文件夹处理
@@ -444,6 +473,10 @@ function App() {
           onClose={() => setShowPreviewModal(false)}
           imageSrc={previewImage}
           title={previewTitle}
+          currentIndex={previewCurrentIndex}
+          totalCount={previewVideoList.length}
+          onPrevious={handlePreviewPrevious}
+          onNext={handlePreviewNext}
         />
 
         {/* 错误提示 */}
