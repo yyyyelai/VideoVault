@@ -2,6 +2,7 @@ import React from 'react';
 import { Play, Eye, Image } from 'lucide-react';
 import { type VideoInfo } from '../../types';
 import { formatFileSize, formatDuration } from '../../utils/formatters';
+import { Lens } from '../magicui/lens';
 import './VideoDisplay.css';
 
 interface VideoCardProps {
@@ -27,15 +28,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     return (
       <div className="video-card">
         <div className="video-cover">
-          <img
-            src={coverPath}
-            alt={video.name}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              console.log(`❌ 封面加载失败:`, coverPath, '，使用默认封面');
-              target.src = '/placeholder-cover.jpg';
-            }}
-          />
+          <Lens zoomFactor={2} lensSize={150}>
+            <img
+              src={coverPath}
+              alt={video.name}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                console.log(`❌ 封面加载失败:`, coverPath, '，使用默认封面');
+                target.src = '/placeholder-cover.jpg';
+              }}
+            />
+          </Lens>
           <div className="video-button-group">
             <button
               className="video-action-btn play-action-btn"

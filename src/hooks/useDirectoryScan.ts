@@ -141,7 +141,7 @@ export const useDirectoryScan = () => {
   };
 
   // 导航到指定目录
-  const navigateToDirectory = (directory: DirectoryNode) => {
+  const navigateToDirectory = (directory: DirectoryNode, pushHistory: boolean = true) => {
     setCurrentDirectory(directory);
 
     // 更新面包屑
@@ -151,18 +151,39 @@ export const useDirectoryScan = () => {
       newBreadcrumb.push(directory);
     }
     setBreadcrumb(newBreadcrumb);
+
+    // 记录到浏览器历史
+    if (pushHistory && selectedFolder) {
+      const state = {
+        rootId: selectedFolder,
+        directoryPath: directory.path,
+        breadcrumb: newBreadcrumb.map(d => d.path),
+      };
+      window.history.pushState(state, '', `#${directory.path}`);
+    }
   };
 
   // 导航到面包屑中的目录
-  const navigateToBreadcrumb = (index: number) => {
+  const navigateToBreadcrumb = (index: number, pushHistory: boolean = true) => {
     const targetDirectory = breadcrumb[index];
     setCurrentDirectory(targetDirectory);
     // 截断面包屑到目标位置
-    setBreadcrumb(breadcrumb.slice(0, index + 1));
+    const newBreadcrumb = breadcrumb.slice(0, index + 1);
+    setBreadcrumb(newBreadcrumb);
+
+    // 记录到浏览器历史
+    if (pushHistory && selectedFolder) {
+      const state = {
+        rootId: selectedFolder,
+        directoryPath: targetDirectory.path,
+        breadcrumb: newBreadcrumb.map(d => d.path),
+      };
+      window.history.pushState(state, '', `#${targetDirectory.path}`);
+    }
   };
 
   // 返回根目录
-  const goToRoot = (rootDirectory?: DirectoryNode) => {
+  const goToRoot = (rootDirectory?: DirectoryNode, pushHistory: boolean = true) => {
     console.log('goToRoot', rootDirectory);
     if (selectedFolder) {
       if (rootDirectory) {
@@ -173,6 +194,16 @@ export const useDirectoryScan = () => {
         // 如果没有提供根目录数据，才重新扫描
         scanDirectory(selectedFolder);
         setBreadcrumb([]);
+      }
+
+      // 记录到浏览器历史
+      if (pushHistory) {
+        const state = {
+          rootId: selectedFolder,
+          directoryPath: rootDirectory?.path || '',
+          breadcrumb: [],
+        };
+        window.history.pushState(state, '', '#root');
       }
     }
   };

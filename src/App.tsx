@@ -7,7 +7,7 @@ import { AddFolderModal } from './components/Modals/AddFolderModal';
 import { PreviewModal } from './components/Modals/PreviewModal';
 import { useRootFolders } from './hooks/useRootFolders';
 import { useFolderHistory } from './hooks/useFolderHistory';
-import type { FolderHistoryItem } from './types';
+import type { FolderHistoryItem, DirectoryNode } from './types';
 import { useDirectoryScan } from './hooks/useDirectoryScan';
 import { useCoverPaths } from './hooks/useCoverPaths';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
@@ -87,6 +87,55 @@ function App() {
       loadFolderCoverPaths(currentDirectory);
     }
   }, [currentDirectory, loadCoverPaths, loadFolderCoverPaths]);
+
+  // 处理浏览器前进后退
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (!state || !state.rootId) return;
+
+      console.log('浏览器后退/前进:', state);
+
+      // 如果切换了根文件夹，需要重新加载
+      if (state.rootId !== selectedFolder) {
+        scanDirectory(state.rootId);
+        return;
+      }
+
+      // 在同一个根文件夹内导航
+      if (state.directoryPath && currentDirectory) {
+        // 如果是返回根目录
+        if (state.breadcrumb.length === 0) {
+          const rootDir = getRootDirectory();
+          if (rootDir) {
+            goToRoot(rootDir, false);
+          }
+          return;
+        }
+
+        // 查找目标目录
+        const findDirectoryByPath = (node: DirectoryNode, targetPath: string): DirectoryNode | null => {
+          if (node.path === targetPath) return node;
+          for (const child of node.children) {
+            const found = findDirectoryByPath(child, targetPath);
+            if (found) return found;
+          }
+          return null;
+        };
+
+        const rootDir = getRootDirectory();
+        if (rootDir) {
+          const targetDir = findDirectoryByPath(rootDir, state.directoryPath);
+          if (targetDir) {
+            navigateToDirectory(targetDir, false);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedFolder, currentDirectory, getRootDirectory, goToRoot, navigateToDirectory, scanDirectory]);
 
   // 当根文件夹加载完成后，自动选择第一个并扫描（若尚未通过缓存 hydrate）
   const hasAutoSelectedRef = useRef(false);

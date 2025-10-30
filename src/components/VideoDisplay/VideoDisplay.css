@@ -34,6 +34,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 800 / 538;
+  overflow: visible; /* 让 Lens 效果可以正常显示 */
 }
 
 .video-cover img {
@@ -41,10 +42,20 @@
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
+  border-radius: 0.5rem 0.5rem 0 0; /* 只保留上边的圆角 */
 }
 
+/* Lens 组件的容器需要完全填充 video-cover */
+.video-cover > div[role="region"] {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.5rem 0.5rem 0 0 !important; /* 只保留上边的圆角 */
+  overflow: hidden;
+}
+
+/* 禁用 hover 时的放大效果，因为 Lens 有自己的缩放 */
 .video-card:hover .video-cover img {
-  transform: scale(1.05);
+  transform: none;
 }
 
 /* 视频按钮组 - shadcn Toggle Group 风格 */
