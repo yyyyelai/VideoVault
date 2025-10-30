@@ -361,8 +361,19 @@ async fn open_folder(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
+        use std::path::PathBuf;
+        
+        // 规范化路径：将字符串转换为 PathBuf，然后转换回字符串
+        // 这样可以确保路径使用 Windows 格式（反斜杠）
+        let path_buf = PathBuf::from(&path);
+        let normalized_path = path_buf
+            .canonicalize()
+            .unwrap_or_else(|_| path_buf)
+            .to_string_lossy()
+            .replace('/', "\\"); // 确保使用反斜杠
+        
         Command::new("explorer")
-            .arg(&path)
+            .arg(&normalized_path)
             .output()
             .map_err(|e| format!("无法打开文件夹: {}", e))?;
     }

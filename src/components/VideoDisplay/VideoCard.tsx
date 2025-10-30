@@ -28,7 +28,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     return (
       <div className="video-card">
         <div className="video-cover">
-          <Lens zoomFactor={2} lensSize={150}>
+          <Lens zoomFactor={1.5} lensSize={150}>
             <img
               src={coverPath}
               alt={video.name}
