@@ -27,16 +27,6 @@ export const useCustomFolderCovers = () => {
     loadCustomCovers();
   }, []);
 
-  // 验证封面文件是否存在
-  const validateCoverPath = useCallback(async (coverPath: string): Promise<boolean> => {
-    try {
-      const exists = await invoke<boolean>('check_file_exists', { path: coverPath });
-      return exists;
-    } catch (error) {
-      console.error('验证封面路径失败:', error);
-      return false;
-    }
-  }, []);
 
   // 获取文件夹的自定义封面（验证后）
   // 直接从 localStorage 读取，而不是从 state 读取，避免多个 hook 实例的 state 不同步问题
