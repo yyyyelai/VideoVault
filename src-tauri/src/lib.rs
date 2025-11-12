@@ -158,21 +158,24 @@ fn get_cover_info(state: State<AppState>, cover_path: String) -> Result<CoverInf
 fn open_video(path: String) -> Result<(), String> {
     use std::process::Command;
     
-    let output = if cfg!(target_os = "macos") {
-        Command::new("open")
-            .arg(&path)
-            .output()
-    } else if cfg!(target_os = "windows") {
+    #[cfg(target_os = "macos")]
+    let output = Command::new("open")
+        .arg(&path)
+        .output();
+    
+    #[cfg(target_os = "windows")]
+    let output = {
         use std::os::windows::process::CommandExt;
         Command::new("cmd")
             .args(&["/C", "start", &path])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
-    } else {
-        Command::new("xdg-open")
-            .arg(&path)
-            .output()
     };
+    
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let output = Command::new("xdg-open")
+        .arg(&path)
+        .output();
 
     match output {
         Ok(_) => Ok(()),
