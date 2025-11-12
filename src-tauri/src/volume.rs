@@ -45,6 +45,7 @@ fn get_system_volume_key(root: &Path) -> Result<String, String> {
     {
         use std::path::Component;
         use std::process::Command;
+        use std::os::windows::process::CommandExt;
 
         // 解析盘符（若有）
         let mut drive_letter: Option<char> = None;
@@ -60,8 +61,10 @@ fn get_system_volume_key(root: &Path) -> Result<String, String> {
         let drive = drive_letter.map(|c| format!("{}:", c)).unwrap_or_else(|| "C:".to_string());
 
         // 调用 `vol X:` 获取卷序列号（兼容稳定版 Rust，无需不稳定 API）
+        // CREATE_NO_WINDOW = 0x08000000，用于隐藏命令行窗口
         let output = Command::new("cmd")
             .args(["/C", "vol", &drive])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
             .map_err(|e| e.to_string())?;
 

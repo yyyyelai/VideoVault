@@ -47,15 +47,23 @@ impl VideoProcessor {
         let path_str = path.to_string_lossy();
         
         // 构建 ffprobe 命令
-        let output = Command::new("ffprobe")
-            .args(&[
-                "-v", "quiet",
-                "-print_format", "json",
-                "-show_format",
-                "-show_streams",
-                &path_str
-            ])
-            .output();
+        let mut cmd = Command::new("ffprobe");
+        cmd.args(&[
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            &path_str
+        ]);
+        
+        // 在 Windows 上隐藏命令行窗口
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        
+        let output = cmd.output();
         
         let output = match output {
             Ok(output) => output,

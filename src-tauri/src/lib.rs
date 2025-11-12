@@ -163,8 +163,10 @@ fn open_video(path: String) -> Result<(), String> {
             .arg(&path)
             .output()
     } else if cfg!(target_os = "windows") {
+        use std::os::windows::process::CommandExt;
         Command::new("cmd")
             .args(&["/C", "start", &path])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
     } else {
         Command::new("xdg-open")
@@ -183,9 +185,17 @@ fn open_video(path: String) -> Result<(), String> {
 fn execute_command(command: String, args: Vec<String>) -> Result<(), String> {
     use std::process::Command;
     
-    let output = Command::new(&command)
-        .args(&args)
-        .output();
+    let mut cmd = Command::new(&command);
+    cmd.args(&args);
+    
+    // 在 Windows 上隐藏命令行窗口
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output();
 
     match output {
         Ok(_) => Ok(()),

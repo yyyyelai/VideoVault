@@ -342,10 +342,18 @@ impl FolderManager {
     fn scan_directory_entries_fallback(&self, path: &PathBuf) -> Result<Vec<std::fs::DirEntry>, Box<dyn std::error::Error>> {
         use std::process::Command;
         
-        let output = Command::new("ls")
-            .arg("-la")
-            .arg(path.to_string_lossy().as_ref())
-            .output()?;
+        let mut cmd = Command::new("ls");
+        cmd.arg("-la")
+            .arg(path.to_string_lossy().as_ref());
+        
+        // 在 Windows 上隐藏命令行窗口
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        
+        let output = cmd.output()?;
             
         if !output.status.success() {
             return Ok(Vec::new());
@@ -585,10 +593,18 @@ impl FolderManager {
                             // 尝试使用系统命令读取目录
                             use std::process::Command;
                             
-                            if let Ok(output) = Command::new("ls")
-                                .arg("-la")
-                                .arg(path.to_string_lossy().as_ref())
-                                .output() {
+                            let mut cmd = Command::new("ls");
+                            cmd.arg("-la")
+                                .arg(path.to_string_lossy().as_ref());
+                            
+                            // 在 Windows 上隐藏命令行窗口
+                            #[cfg(windows)]
+                            {
+                                use std::os::windows::process::CommandExt;
+                                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                            }
+                            
+                            if let Ok(output) = cmd.output() {
                                 if output.status.success() {
                                     let output_str = String::from_utf8_lossy(&output.stdout);
                                     
@@ -665,10 +681,18 @@ impl FolderManager {
                 // 尝试使用系统命令读取目录
                 use std::process::Command;
                 
-                if let Ok(output) = Command::new("ls")
-                    .arg("-la")
-                    .arg(path.to_string_lossy().as_ref())
-                    .output() {
+                let mut cmd = Command::new("ls");
+                cmd.arg("-la")
+                    .arg(path.to_string_lossy().as_ref());
+                
+                // 在 Windows 上隐藏命令行窗口
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                }
+                
+                if let Ok(output) = cmd.output() {
                     if output.status.success() {
                         let output_str = String::from_utf8_lossy(&output.stdout);
                         // 静默处理成功
